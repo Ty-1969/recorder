@@ -94,10 +94,27 @@ exports.handler = async (event, context) => {
 
       if (error) throw error;
 
+      // 過濾掉不需要的類別並去重
+      const excludedNames = ['含氧量', '藥物', '大小便'];
+      const uniqueCategories = [];
+      const seenIds = new Set();
+      
+      (data || []).forEach(cat => {
+        // 排除不需要的類別
+        if (excludedNames.includes(cat.name)) {
+          return;
+        }
+        // 去重
+        if (cat && cat.id && !seenIds.has(cat.id)) {
+          seenIds.add(cat.id);
+          uniqueCategories.push(cat);
+        }
+      });
+
       return {
         statusCode: 200,
         headers,
-        body: JSON.stringify({ success: true, categories: data || [] })
+        body: JSON.stringify({ success: true, categories: uniqueCategories })
       };
     }
 

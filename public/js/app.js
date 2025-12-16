@@ -247,10 +247,17 @@ async function loadRecords() {
     showLoading();
     try {
         const token = localStorage.getItem('auth_token');
-        const startDate = getWeekStart(currentDate).toISOString().split('T')[0];
-        const endDate = getWeekEnd(currentDate).toISOString().split('T')[0];
+        // 使用本地日期格式，避免時區問題
+        const startDate = formatDateLocal(getWeekStart(currentDate));
+        const endDate = formatDateLocal(getWeekEnd(currentDate));
         
-        console.log('載入紀錄:', { startDate, endDate }); // 除錯用
+        console.log('載入紀錄:', { 
+            currentDate: formatDateLocal(currentDate),
+            startDate, 
+            endDate,
+            weekStartDay: getWeekStart(currentDate).getDay(),
+            weekEndDay: getWeekEnd(currentDate).getDay()
+        }); // 除錯用
         
         const response = await fetch(
             `${API_BASE}/records?start_date=${startDate}&end_date=${endDate}`,
@@ -311,13 +318,18 @@ function renderWeekView() {
         }
         
         if (dayColumns[index]) {
-            const dateKey = date.toISOString().split('T')[0];
+            // 使用本地日期格式
+            const dateKey = formatDateLocal(date);
             dayColumns[index].setAttribute('data-date', dateKey);
             dayColumns[index].innerHTML = '';
             
             // 過濾該日期的紀錄（考慮類別篩選）
             const categoryFilter = document.getElementById('categoryFilter')?.value;
-            let dayRecords = records.filter(r => r.record_date === dateKey);
+            let dayRecords = records.filter(r => {
+                // 確保日期格式一致
+                const recordDate = r.record_date ? r.record_date.split('T')[0] : r.record_date;
+                return recordDate === dateKey;
+            });
             
             if (categoryFilter && categoryFilter !== '') {
                 dayRecords = dayRecords.filter(r => r.category_id == categoryFilter);
@@ -331,8 +343,13 @@ function renderWeekView() {
 }
 
 function renderDayView() {
-    const dateKey = currentDate.toISOString().split('T')[0];
-    let dayRecords = records.filter(r => r.record_date === dateKey);
+    // 使用本地日期格式
+    const dateKey = formatDateLocal(currentDate);
+    let dayRecords = records.filter(r => {
+        // 確保日期格式一致
+        const recordDate = r.record_date ? r.record_date.split('T')[0] : r.record_date;
+        return recordDate === dateKey;
+    });
     
     // 考慮類別篩選
     const categoryFilter = document.getElementById('categoryFilter')?.value;
@@ -423,14 +440,26 @@ function handleDateChange(e) {
 }
 
 function updateDatePicker() {
-    document.getElementById('datePicker').value = currentDate.toISOString().split('T')[0];
+    const datePicker = document.getElementById('datePicker');
+    if (datePicker) {
+        // 使用本地日期格式，避免時區問題
+        const year = currentDate.getFullYear();
+        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const day = String(currentDate.getDate()).padStart(2, '0');
+        datePicker.value = `${year}-${month}-${day}`;
+    }
 }
 
 function getWeekStart(date) {
+    // 複製日期物件，避免修改原始日期
     const d = new Date(date);
+    // 取得星期幾（0 = 週日, 1 = 週一, ...）
     const day = d.getDay();
+    // 計算到本週週日的天數差
     const diff = d.getDate() - day;
-    return new Date(d.setDate(diff));
+    // 建立新日期物件，設定為本週週日
+    const weekStart = new Date(d.getFullYear(), d.getMonth(), diff);
+    return weekStart;
 }
 
 function getWeekEnd(date) {
@@ -440,12 +469,21 @@ function getWeekEnd(date) {
     return end;
 }
 
+// 格式化日期為 YYYY-MM-DD（本地時間）
+function formatDateLocal(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
 // 新增/編輯紀錄
 function showAddRecordModal() {
     editingRecordId = null;
     document.getElementById('recordModalTitle').textContent = '新增紀錄';
     document.getElementById('recordForm').reset();
-    document.getElementById('recordDate').value = currentDate.toISOString().split('T')[0];
+    // 使用本地日期格式，避免時區問題
+    document.getElementById('recordDate').value = formatDateLocal(currentDate);
     document.getElementById('recordTime').value = new Date().toTimeString().substring(0, 5);
     document.getElementById('recordFields').innerHTML = '';
     document.getElementById('recordModal').classList.add('active');

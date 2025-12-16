@@ -84,9 +84,14 @@ exports.handler = async (event, context) => {
           ),
           record_data (*)
         `)
-        .eq('user_id', user.id)
-        .order('record_date', { ascending: false })
-        .order('record_time', { ascending: false });
+        .eq('user_id', user.id);
+      
+      // 先排序日期，再排序時間
+      query = query.order('record_date', { ascending: false });
+      if (query.order) {
+        // Supabase 允許多個 order，但需要分別調用
+        // 這裡先按日期排序，時間排序在應用層處理
+      }
 
       if (startDate) {
         query = query.gte('record_date', startDate);

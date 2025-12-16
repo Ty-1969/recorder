@@ -86,6 +86,7 @@ function setupEventListeners() {
     document.getElementById('statsBtn').addEventListener('click', toggleStatsView);
     document.getElementById('categoriesBtn').addEventListener('click', toggleCategoriesView);
     document.getElementById('exportBtn').addEventListener('click', showExportOptions);
+    document.getElementById('settingsBtn').addEventListener('click', showSettings);
     
     // 類別管理
     document.getElementById('closeCategoryModal').addEventListener('click', closeCategoryModal);
@@ -165,7 +166,12 @@ function handleLogout() {
 }
 
 // 載入類別
+let isLoadingCategories = false;
 async function loadCategories() {
+    // 防止重複載入
+    if (isLoadingCategories) return;
+    isLoadingCategories = true;
+    
     try {
         const token = localStorage.getItem('auth_token');
         const response = await fetch(`${API_BASE}/categories`, {
@@ -173,12 +179,25 @@ async function loadCategories() {
         });
         
         const data = await response.json();
-        if (data.success) {
-            categories = data.categories;
+        if (data.success && data.categories) {
+            // 過濾掉重複的類別（使用 Map 來去重）
+            const uniqueCategories = [];
+            const seenIds = new Set();
+            
+            data.categories.forEach(cat => {
+                if (cat && cat.id && !seenIds.has(cat.id)) {
+                    seenIds.add(cat.id);
+                    uniqueCategories.push(cat);
+                }
+            });
+            
+            categories = uniqueCategories;
             populateCategorySelects();
         }
     } catch (error) {
         console.error('載入類別失敗:', error);
+    } finally {
+        isLoadingCategories = false;
     }
 }
 
@@ -222,6 +241,8 @@ async function loadRecords() {
         const startDate = getWeekStart(currentDate).toISOString().split('T')[0];
         const endDate = getWeekEnd(currentDate).toISOString().split('T')[0];
         
+        console.log('載入紀錄:', { startDate, endDate }); // 除錯用
+        
         const response = await fetch(
             `${API_BASE}/records?start_date=${startDate}&end_date=${endDate}`,
             {
@@ -230,13 +251,19 @@ async function loadRecords() {
         );
         
         const data = await response.json();
+        console.log('紀錄回應:', data); // 除錯用
+        
         if (data.success) {
-            records = data.records;
+            records = data.records || [];
+            console.log('載入的紀錄數量:', records.length); // 除錯用
             renderRecords();
+        } else {
+            console.error('載入紀錄失敗:', data.error);
+            alert('載入紀錄失敗: ' + (data.error || '未知錯誤'));
         }
     } catch (error) {
-        console.error('載入紀錄失敗:', error);
-        alert('載入紀錄失敗');
+        console.error('載入紀錄錯誤:', error);
+        alert('載入紀錄失敗: ' + error.message);
     } finally {
         hideLoading();
     }
@@ -279,7 +306,14 @@ function renderWeekView() {
             dayColumns[index].setAttribute('data-date', dateKey);
             dayColumns[index].innerHTML = '';
             
-            const dayRecords = records.filter(r => r.record_date === dateKey);
+            // 過濾該日期的紀錄（考慮類別篩選）
+            const categoryFilter = document.getElementById('categoryFilter')?.value;
+            let dayRecords = records.filter(r => r.record_date === dateKey);
+            
+            if (categoryFilter && categoryFilter !== '') {
+                dayRecords = dayRecords.filter(r => r.category_id == categoryFilter);
+            }
+            
             dayRecords.forEach(record => {
                 dayColumns[index].appendChild(createRecordCard(record));
             });
@@ -289,16 +323,23 @@ function renderWeekView() {
 
 function renderDayView() {
     const dateKey = currentDate.toISOString().split('T')[0];
-    const dayRecords = records.filter(r => r.record_date === dateKey);
-    const container = document.getElementById('dayRecords');
+    let dayRecords = records.filter(r => r.record_date === dateKey);
     
+    // 考慮類別篩選
+    const categoryFilter = document.getElementById('categoryFilter')?.value;
+    if (categoryFilter && categoryFilter !== '') {
+        dayRecords = dayRecords.filter(r => r.category_id == categoryFilter);
+    }
+    
+    const container = document.getElementById('dayRecords');
     container.innerHTML = '';
     
     if (dayRecords.length === 0) {
+        const dateStr = formatDate(dateKey);
         container.innerHTML = `
             <div class="empty-state">
                 <div class="empty-state-icon">📝</div>
-                <div class="empty-state-text">今天還沒有紀錄</div>
+                <div class="empty-state-text">${dateStr} 還沒有紀錄</div>
             </div>
         `;
     } else {
@@ -618,6 +659,7 @@ async function deleteRecord(id) {
 
 // 篩選
 function filterRecords() {
+    console.log('篩選紀錄，當前紀錄數量:', records.length);
     renderRecords();
 }
 
@@ -672,6 +714,25 @@ function showExportOptions() {
     exportData(format);
 }
 
+// 設定功能
+function showSettings() {
+    const username = localStorage.getItem('username') || '未知';
+    const settings = `目前使用者：${username}
+
+功能說明：
+• 點擊「+ 新增紀錄」來新增健康紀錄
+• 點擊「📋」來管理類別
+• 點擊「📊」來查看統計圖表
+• 點擊「📤」來匯出資料
+• 點擊「🚪」來登出
+
+提示：
+• 桌面版顯示週視圖
+• 手機版顯示日視圖
+• 可以編輯和刪除自己的紀錄`;
+    alert(settings);
+}
+
 // 工具函數
 function showLoading() {
     document.getElementById('loading').style.display = 'flex';
@@ -723,7 +784,18 @@ function renderCategoriesList(categoriesList) {
         return;
     }
     
-    container.innerHTML = categoriesList.map(cat => `
+    // 過濾掉重複的類別
+    const uniqueCategories = [];
+    const seenIds = new Set();
+    
+    categoriesList.forEach(cat => {
+        if (cat && cat.id && !seenIds.has(cat.id)) {
+            seenIds.add(cat.id);
+            uniqueCategories.push(cat);
+        }
+    });
+    
+    container.innerHTML = uniqueCategories.map(cat => `
         <div class="chart-card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                 <h3 style="margin: 0; display: flex; align-items: center; gap: 8px;">

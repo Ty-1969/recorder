@@ -109,6 +109,150 @@ exports.handler = async (event, context) => {
       };
     }
 
+    // POST: 新增類別
+    if (httpMethod === 'POST' && !categoryId) {
+      const { name, icon } = JSON.parse(event.body || '{}');
+
+      if (!name || !name.trim()) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ success: false, error: '類別名稱為必填' })
+        };
+      }
+
+      // 取得最大 display_order
+      const { data: maxOrder } = await supabase
+        .from('record_categories')
+        .select('display_order')
+        .eq('user_id', user.id)
+        .order('display_order', { ascending: false })
+        .limit(1)
+        .single();
+
+      const { data, error } = await supabase
+        .from('record_categories')
+        .insert({
+          user_id: user.id,
+          name: name.trim(),
+          icon: icon || '📝',
+          is_default: false,
+          display_order: (maxOrder?.display_order || 0) + 1
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return {
+        statusCode: 201,
+        headers,
+        body: JSON.stringify({ success: true, category: data })
+      };
+    }
+
+    // PUT: 更新類別
+    if (httpMethod === 'PUT' && categoryId) {
+      const { name, icon } = JSON.parse(event.body || '{}');
+
+      // 檢查類別是否存在且屬於該使用者
+      const { data: existing } = await supabase
+        .from('record_categories')
+        .select('*')
+        .eq('id', categoryId)
+        .single();
+
+      if (!existing) {
+        return {
+          statusCode: 404,
+          headers,
+          body: JSON.stringify({ success: false, error: '類別不存在' })
+        };
+      }
+
+      if (existing.is_default) {
+        return {
+          statusCode: 403,
+          headers,
+          body: JSON.stringify({ success: false, error: '無法修改預設類別' })
+        };
+      }
+
+      if (existing.user_id !== user.id) {
+        return {
+          statusCode: 403,
+          headers,
+          body: JSON.stringify({ success: false, error: '無權限修改此類別' })
+        };
+      }
+
+      const updateData = {};
+      if (name !== undefined) updateData.name = name.trim();
+      if (icon !== undefined) updateData.icon = icon || '📝';
+
+      const { data, error } = await supabase
+        .from('record_categories')
+        .update(updateData)
+        .eq('id', categoryId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ success: true, category: data })
+      };
+    }
+
+    // DELETE: 刪除類別
+    if (httpMethod === 'DELETE' && categoryId) {
+      // 檢查類別是否存在且屬於該使用者
+      const { data: existing } = await supabase
+        .from('record_categories')
+        .select('*')
+        .eq('id', categoryId)
+        .single();
+
+      if (!existing) {
+        return {
+          statusCode: 404,
+          headers,
+          body: JSON.stringify({ success: false, error: '類別不存在' })
+        };
+      }
+
+      if (existing.is_default) {
+        return {
+          statusCode: 403,
+          headers,
+          body: JSON.stringify({ success: false, error: '無法刪除預設類別' })
+        };
+      }
+
+      if (existing.user_id !== user.id) {
+        return {
+          statusCode: 403,
+          headers,
+          body: JSON.stringify({ success: false, error: '無權限刪除此類別' })
+        };
+      }
+
+      const { error } = await supabase
+        .from('record_categories')
+        .delete()
+        .eq('id', categoryId);
+
+      if (error) throw error;
+
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ success: true })
+      };
+    }
+
     return {
       statusCode: 404,
       headers,

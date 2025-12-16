@@ -84,7 +84,13 @@ function setupEventListeners() {
     
     // 視圖切換
     document.getElementById('statsBtn').addEventListener('click', toggleStatsView);
+    document.getElementById('categoriesBtn').addEventListener('click', toggleCategoriesView);
     document.getElementById('exportBtn').addEventListener('click', showExportOptions);
+    
+    // 類別管理
+    document.getElementById('closeCategoryModal').addEventListener('click', closeCategoryModal);
+    document.getElementById('cancelCategoryBtn').addEventListener('click', closeCategoryModal);
+    document.getElementById('categoryForm').addEventListener('submit', handleSaveCategory);
 }
 
 // 設定響應式視圖
@@ -458,18 +464,31 @@ function renderFields(fields) {
 
 async function handleSaveRecord(e) {
     e.preventDefault();
-    showLoading();
     
     const formData = new FormData(e.target);
     const categoryId = formData.get('recordCategory');
     const recordDate = formData.get('recordDate');
+    
+    // 驗證必填欄位
+    if (!categoryId || categoryId === '') {
+        alert('請選擇類別');
+        return;
+    }
+    
+    if (!recordDate || recordDate === '') {
+        alert('請選擇日期');
+        return;
+    }
+    
+    showLoading();
+    
     const recordTime = formData.get('recordTime') || null;
     const notes = formData.get('recordNotes') || null;
     
     const data = {};
     const fields = document.querySelectorAll('#recordFields input, #recordFields select');
     fields.forEach(field => {
-        if (field.value) {
+        if (field.value && field.value.trim() !== '') {
             data[field.name] = field.value;
         }
     });
@@ -569,21 +588,48 @@ function filterRecords() {
     renderRecords();
 }
 
+// 返回紀錄畫面
+function backToRecords() {
+    document.getElementById('statsView').style.display = 'none';
+    document.getElementById('categoriesView').style.display = 'none';
+    setupResponsiveView();
+}
+
 // 統計視圖
 function toggleStatsView() {
     const statsView = document.getElementById('statsView');
+    const categoriesView = document.getElementById('categoriesView');
     const weekView = document.getElementById('weekView');
     const dayView = document.getElementById('dayView');
     const isVisible = statsView.style.display !== 'none';
     
     if (!isVisible) {
         statsView.style.display = 'block';
+        categoriesView.style.display = 'none';
         weekView.style.display = 'none';
         dayView.style.display = 'none';
         loadStats();
     } else {
+        backToRecords();
+    }
+}
+
+// 類別管理視圖
+function toggleCategoriesView() {
+    const statsView = document.getElementById('statsView');
+    const categoriesView = document.getElementById('categoriesView');
+    const weekView = document.getElementById('weekView');
+    const dayView = document.getElementById('dayView');
+    const isVisible = categoriesView.style.display !== 'none';
+    
+    if (!isVisible) {
+        categoriesView.style.display = 'block';
         statsView.style.display = 'none';
-        setupResponsiveView();
+        weekView.style.display = 'none';
+        dayView.style.display = 'none';
+        loadCategoriesList();
+    } else {
+        backToRecords();
     }
 }
 
@@ -613,7 +659,164 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// 類別管理功能
+let editingCategoryId = null;
+
+async function loadCategoriesList() {
+    const container = document.getElementById('categoriesList');
+    container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">載入中...</div></div>';
+    
+    try {
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch(`${API_BASE}/categories`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            renderCategoriesList(data.categories);
+        }
+    } catch (error) {
+        console.error('載入類別列表失敗:', error);
+        container.innerHTML = '<div class="empty-state"><div class="empty-state-text">載入失敗</div></div>';
+    }
+}
+
+function renderCategoriesList(categoriesList) {
+    const container = document.getElementById('categoriesList');
+    
+    if (!categoriesList || categoriesList.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-state-text">還沒有類別</div></div>';
+        return;
+    }
+    
+    container.innerHTML = categoriesList.map(cat => `
+        <div class="chart-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 style="margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <span>${cat.icon || '📝'}</span>
+                    <span>${escapeHtml(cat.name)}</span>
+                </h3>
+                ${!cat.is_default ? `
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.9rem;" onclick="editCategory(${cat.id})">編輯</button>
+                        <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.9rem; background: var(--accent-danger);" onclick="deleteCategory(${cat.id})">刪除</button>
+                    </div>
+                ` : '<span style="font-size: 0.85rem; color: var(--text-muted);">預設類別</span>'}
+            </div>
+        </div>
+    `).join('');
+}
+
+function showAddCategoryModal() {
+    editingCategoryId = null;
+    document.getElementById('categoryModalTitle').textContent = '新增類別';
+    document.getElementById('categoryForm').reset();
+    document.getElementById('categoryModal').classList.add('active');
+}
+
+function editCategory(id) {
+    const category = categories.find(c => c.id === id);
+    if (!category || category.is_default) return;
+    
+    editingCategoryId = id;
+    document.getElementById('categoryModalTitle').textContent = '編輯類別';
+    document.getElementById('categoryName').value = category.name;
+    document.getElementById('categoryIcon').value = category.icon || '';
+    document.getElementById('categoryModal').classList.add('active');
+}
+
+async function handleSaveCategory(e) {
+    e.preventDefault();
+    showLoading();
+    
+    const name = document.getElementById('categoryName').value.trim();
+    const icon = document.getElementById('categoryIcon').value.trim() || '📝';
+    
+    if (!name) {
+        alert('請輸入類別名稱');
+        hideLoading();
+        return;
+    }
+    
+    try {
+        const token = localStorage.getItem('auth_token');
+        const url = editingCategoryId 
+            ? `${API_BASE}/categories/${editingCategoryId}`
+            : `${API_BASE}/categories`;
+        
+        const response = await fetch(url, {
+            method: editingCategoryId ? 'PUT' : 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                name: name,
+                icon: icon
+            })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            closeCategoryModal();
+            await loadCategories();
+            await loadCategoriesList();
+            populateCategorySelects();
+        } else {
+            alert(result.error || '儲存失敗');
+        }
+    } catch (error) {
+        alert('發生錯誤：' + error.message);
+    } finally {
+        hideLoading();
+    }
+}
+
+async function deleteCategory(id) {
+    const category = categories.find(c => c.id === id);
+    if (!category || category.is_default) {
+        alert('無法刪除預設類別');
+        return;
+    }
+    
+    if (!confirm(`確定要刪除類別「${category.name}」嗎？\n注意：刪除後相關的紀錄不會被刪除，但類別會顯示為「未知」。`)) {
+        return;
+    }
+    
+    showLoading();
+    try {
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch(`${API_BASE}/categories/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            await loadCategories();
+            await loadCategoriesList();
+            populateCategorySelects();
+        } else {
+            alert(data.error || '刪除失敗');
+        }
+    } catch (error) {
+        alert('發生錯誤：' + error.message);
+    } finally {
+        hideLoading();
+    }
+}
+
+function closeCategoryModal() {
+    document.getElementById('categoryModal').classList.remove('active');
+    editingCategoryId = null;
+}
+
 // 全域函數（供 HTML 呼叫）
 window.editRecord = editRecord;
 window.deleteRecord = deleteRecord;
+window.backToRecords = backToRecords;
+window.showAddCategoryModal = showAddCategoryModal;
+window.editCategory = editCategory;
+window.deleteCategory = deleteCategory;
 

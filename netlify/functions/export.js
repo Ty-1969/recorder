@@ -1,4 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
+const PDFDocument = require('pdfkit');
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY;
@@ -128,20 +129,120 @@ exports.handler = async (event, context) => {
     }
 
     if (format === 'pdf') {
-      // PDF 匯出（簡化版，實際應該使用 PDF 庫）
-      // 這裡返回 JSON，前端可以處理或使用第三方服務
-      return {
-        statusCode: 200,
-        headers: {
-          ...headers,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          success: true,
-          message: 'PDF 匯出功能需要額外的 PDF 生成庫，目前返回 JSON 格式',
-          data: exportData
-        })
-      };
+      // PDF 匯出
+      return new Promise((resolve, reject) => {
+        try {
+          const doc = new PDFDocument({ 
+            margin: 50,
+            size: 'A4'
+          });
+          const chunks = [];
+          
+          doc.on('data', chunk => chunks.push(chunk));
+          doc.on('end', () => {
+            const pdfBuffer = Buffer.concat(chunks);
+            const pdfBase64 = pdfBuffer.toString('base64');
+            
+            resolve({
+              statusCode: 200,
+              headers: {
+                ...headers,
+                'Content-Type': 'application/pdf',
+                'Content-Disposition': `attachment; filename="health_records_${startDate || 'all'}_${endDate || 'all'}.pdf"`
+              },
+              body: pdfBase64,
+              isBase64Encoded: true
+            });
+          });
+          
+          doc.on('error', (error) => {
+            reject(error);
+          });
+          
+          // 標題
+          doc.fontSize(20).text('Health Records Export', { align: 'center' });
+          doc.moveDown(0.5);
+          
+          // 日期範圍
+          if (startDate || endDate) {
+            doc.fontSize(12).text(`Date Range: ${startDate || 'All'} to ${endDate || 'All'}`, { align: 'center' });
+          }
+          
+          doc.moveDown();
+          
+          // 表格
+          if (exportData.length > 0) {
+            const tableHeaders = Object.keys(exportData[0]);
+            const pageWidth = doc.page.width - 100;
+            const colCount = tableHeaders.length;
+            const colWidth = pageWidth / colCount;
+            const startX = 50;
+            let y = doc.y;
+            
+            // 表格標題
+            doc.fontSize(10).font('Helvetica-Bold');
+            tableHeaders.forEach((header, i) => {
+              const x = startX + i * colWidth;
+              doc.text(String(header), x, y, { width: colWidth - 5, align: 'left' });
+            });
+            
+            y += 20;
+            // 繪製分隔線
+            doc.moveTo(startX, y).lineTo(startX + pageWidth, y).stroke();
+            y += 10;
+            
+            // 資料行
+            doc.font('Helvetica').fontSize(9);
+            exportData.forEach((row) => {
+              if (y > 750) { // 換頁
+                doc.addPage();
+                y = 50;
+                // 重新繪製標題
+                doc.fontSize(10).font('Helvetica-Bold');
+                tableHeaders.forEach((header, i) => {
+                  const x = startX + i * colWidth;
+                  doc.text(String(header), x, y, { width: colWidth - 5, align: 'left' });
+                });
+                y += 20;
+                doc.moveTo(startX, y).lineTo(startX + pageWidth, y).stroke();
+                y += 10;
+                doc.font('Helvetica').fontSize(9);
+              }
+              
+              tableHeaders.forEach((header, colIndex) => {
+                const x = startX + colIndex * colWidth;
+                const value = String(row[header] || '').substring(0, 30);
+                doc.text(value, x, y, { width: colWidth - 5, align: 'left' });
+              });
+              
+              y += 15;
+            });
+          } else {
+            doc.fontSize(12).text('No data available', { align: 'center' });
+          }
+          
+          // 頁尾
+          const totalPages = doc.bufferedPageRange().count;
+          for (let i = 0; i < totalPages; i++) {
+            doc.switchToPage(i);
+            doc.fontSize(8)
+              .text(`Page ${i + 1} of ${totalPages}`, 50, doc.page.height - 30, { align: 'center' });
+          }
+          
+          doc.end();
+        } catch (error) {
+          reject(error);
+        }
+      }).catch((error) => {
+        return {
+          statusCode: 500,
+          headers: { ...headers, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            success: false,
+            error: 'PDF generation failed: ' + error.message
+          })
+        };
+      });
     }
 
     return {

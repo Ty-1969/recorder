@@ -903,8 +903,8 @@ function toggleCategoriesView() {
 
 // 匯出
 function showExportOptions() {
-    const format = confirm('選擇匯出格式：\n確定 = PDF\n取消 = Excel') ? 'pdf' : 'excel';
-    exportData(format);
+    // 直接匯出為 Excel (CSV) 格式
+    exportData('excel');
 }
 
 // 設定功能

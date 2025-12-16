@@ -19,8 +19,7 @@
   "license": "ISC",
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
-    "chart.js": "^4.4.0",
-    "pdfkit": "^0.14.0"
+    "chart.js": "^4.4.0"
   },
   "devDependencies": {
     "netlify-cli": "^17.0.0"

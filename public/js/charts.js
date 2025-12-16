@@ -33,6 +33,24 @@ function renderCharts(stats) {
 
 // 血壓趨勢圖
 function renderBPChart(data) {
+    const chartCard = document.querySelector('#bpChart')?.parentElement;
+    if (!chartCard) return;
+    
+    // 如果沒有資料，顯示提示訊息
+    if (!data || data.length === 0) {
+        if (charts.bp) {
+            charts.bp.destroy();
+            charts.bp = null;
+        }
+        chartCard.innerHTML = '<h3>血壓趨勢</h3><div style="padding: 20px; text-align: center; color: #707070;">尚無血壓紀錄</div>';
+        return;
+    }
+    
+    // 恢復 canvas 元素
+    if (!chartCard.querySelector('canvas')) {
+        chartCard.innerHTML = '<h3>血壓趨勢</h3><canvas id="bpChart"></canvas>';
+    }
+    
     const ctx = document.getElementById('bpChart');
     if (!ctx) return;
     
@@ -98,6 +116,24 @@ function renderBPChart(data) {
 
 // 心跳趨勢圖
 function renderHRChart(data) {
+    const chartCard = document.querySelector('#hrChart')?.parentElement;
+    if (!chartCard) return;
+    
+    // 如果沒有資料，顯示提示訊息
+    if (!data || data.length === 0) {
+        if (charts.hr) {
+            charts.hr.destroy();
+            charts.hr = null;
+        }
+        chartCard.innerHTML = '<h3>心跳趨勢</h3><div style="padding: 20px; text-align: center; color: #707070;">尚無心跳紀錄</div>';
+        return;
+    }
+    
+    // 恢復 canvas 元素
+    if (!chartCard.querySelector('canvas')) {
+        chartCard.innerHTML = '<h3>心跳趨勢</h3><canvas id="hrChart"></canvas>';
+    }
+    
     const ctx = document.getElementById('hrChart');
     if (!ctx) return;
     
@@ -152,6 +188,24 @@ function renderHRChart(data) {
 
 // 飲食統計圖
 function renderDietChart(data) {
+    const chartCard = document.querySelector('#dietChart')?.parentElement;
+    if (!chartCard) return;
+    
+    // 如果沒有資料，顯示提示訊息
+    if (!data || data.length === 0) {
+        if (charts.diet) {
+            charts.diet.destroy();
+            charts.diet = null;
+        }
+        chartCard.innerHTML = '<h3>飲食統計</h3><div style="padding: 20px; text-align: center; color: #707070;">尚無飲食紀錄</div>';
+        return;
+    }
+    
+    // 恢復 canvas 元素
+    if (!chartCard.querySelector('canvas')) {
+        chartCard.innerHTML = '<h3>飲食統計</h3><canvas id="dietChart"></canvas>';
+    }
+    
     const ctx = document.getElementById('dietChart');
     if (!ctx) return;
     
@@ -192,6 +246,24 @@ function renderDietChart(data) {
 
 // 藥物使用統計
 function renderMedChart(data) {
+    const chartCard = document.querySelector('#medChart')?.parentElement;
+    if (!chartCard) return;
+    
+    // 如果沒有資料，顯示提示訊息
+    if (!data || data.length === 0) {
+        if (charts.med) {
+            charts.med.destroy();
+            charts.med = null;
+        }
+        chartCard.innerHTML = '<h3>藥物使用</h3><div style="padding: 20px; text-align: center; color: #707070;">尚無藥物紀錄</div>';
+        return;
+    }
+    
+    // 恢復 canvas 元素
+    if (!chartCard.querySelector('canvas')) {
+        chartCard.innerHTML = '<h3>藥物使用</h3><canvas id="medChart"></canvas>';
+    }
+    
     const ctx = document.getElementById('medChart');
     if (!ctx) return;
     

@@ -80,13 +80,22 @@ function setupEventListeners() {
     document.getElementById('datePicker').addEventListener('change', handleDateChange);
     
     // 篩選
-    document.getElementById('categoryFilter').addEventListener('change', filterRecords);
+    const categoryFilter = document.getElementById('categoryFilter');
+    if (categoryFilter) {
+        categoryFilter.addEventListener('change', filterRecords);
+    }
     
     // 視圖切換
     document.getElementById('statsBtn').addEventListener('click', toggleStatsView);
     document.getElementById('categoriesBtn').addEventListener('click', toggleCategoriesView);
     document.getElementById('exportBtn').addEventListener('click', showExportOptions);
     document.getElementById('settingsBtn').addEventListener('click', showSettings);
+    
+    // 統計期間變更
+    const statsPeriod = document.getElementById('statsPeriod');
+    if (statsPeriod) {
+        statsPeriod.addEventListener('change', loadStats);
+    }
     
     // 類別管理
     document.getElementById('closeCategoryModal').addEventListener('click', closeCategoryModal);
@@ -791,7 +800,9 @@ async function deleteRecord(id) {
 
 // 篩選
 function filterRecords() {
-    console.log('篩選紀錄，當前紀錄數量:', records.length);
+    const categoryFilter = document.getElementById('categoryFilter');
+    const selectedCategory = categoryFilter ? categoryFilter.value : '';
+    console.log('篩選紀錄，選擇的類別:', selectedCategory, '當前紀錄數量:', records.length);
     renderRecords();
 }
 
@@ -799,6 +810,11 @@ function filterRecords() {
 function backToRecords() {
     document.getElementById('statsView').style.display = 'none';
     document.getElementById('categoriesView').style.display = 'none';
+    
+    // 設定為今日並載入今日的所有紀錄
+    currentDate = new Date();
+    updateDatePicker();
+    loadRecords();
     setupResponsiveView();
 }
 

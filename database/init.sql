@@ -96,13 +96,18 @@ CREATE TRIGGER update_health_records_updated_at
 
 -- 插入預設類別（這些是系統預設，所有使用者共用）
 -- 注意：實際使用時，這些應該在應用層動態建立，這裡只是範例
+-- 先刪除可能存在的重複類別
+DELETE FROM record_categories 
+WHERE name IN ('飲食', '血壓', '心跳', '大便', '小便') 
+AND is_default = TRUE;
+
+-- 插入預設類別
 INSERT INTO record_categories (name, icon, is_default, display_order) VALUES
     ('飲食', '🍎', TRUE, 1),
     ('血壓', '🩺', TRUE, 2),
     ('心跳', '❤️', TRUE, 3),
     ('大便', '💩', TRUE, 4),
-    ('小便', '💧', TRUE, 5)
-ON CONFLICT DO NOTHING;
+    ('小便', '💧', TRUE, 5);
 
 -- 取得預設類別的 ID 並插入預設欄位
 -- 飲食類別欄位

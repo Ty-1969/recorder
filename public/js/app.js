@@ -186,19 +186,30 @@ function populateCategorySelects() {
     const categorySelect = document.getElementById('recordCategory');
     const filterSelect = document.getElementById('categoryFilter');
     
+    if (!categorySelect || !filterSelect) return;
+    
     // 清空選項
     categorySelect.innerHTML = '<option value="">請選擇類別</option>';
     filterSelect.innerHTML = '<option value="">全部類別</option>';
     
+    // 過濾掉重複的類別（使用 Map 來去重）
+    const uniqueCategories = new Map();
     categories.forEach(cat => {
+        if (cat && cat.id && !uniqueCategories.has(cat.id)) {
+            uniqueCategories.set(cat.id, cat);
+        }
+    });
+    
+    // 添加唯一類別
+    uniqueCategories.forEach(cat => {
         const option1 = document.createElement('option');
         option1.value = cat.id;
-        option1.textContent = `${cat.icon} ${cat.name}`;
+        option1.textContent = `${cat.icon || '📝'} ${cat.name}`;
         categorySelect.appendChild(option1);
         
         const option2 = document.createElement('option');
         option2.value = cat.id;
-        option2.textContent = `${cat.icon} ${cat.name}`;
+        option2.textContent = `${cat.icon || '📝'} ${cat.name}`;
         filterSelect.appendChild(option2);
     });
 }
@@ -465,18 +476,31 @@ function renderFields(fields) {
 async function handleSaveRecord(e) {
     e.preventDefault();
     
-    const formData = new FormData(e.target);
-    const categoryId = formData.get('recordCategory');
-    const recordDate = formData.get('recordDate');
+    // 直接從 select 元素取得值，而不是從 FormData
+    const categorySelect = document.getElementById('recordCategory');
+    const dateInput = document.getElementById('recordDate');
+    
+    const categoryId = categorySelect ? categorySelect.value : '';
+    const recordDate = dateInput ? dateInput.value : '';
     
     // 驗證必填欄位
-    if (!categoryId || categoryId === '') {
+    if (!categoryId || categoryId === '' || categoryId === '0') {
         alert('請選擇類別');
+        if (categorySelect) categorySelect.focus();
         return;
     }
     
     if (!recordDate || recordDate === '') {
         alert('請選擇日期');
+        if (dateInput) dateInput.focus();
+        return;
+    }
+    
+    // 驗證 categoryId 是否為有效數字
+    const categoryIdNum = parseInt(categoryId);
+    if (isNaN(categoryIdNum) || categoryIdNum <= 0) {
+        alert('請選擇有效的類別');
+        if (categorySelect) categorySelect.focus();
         return;
     }
     

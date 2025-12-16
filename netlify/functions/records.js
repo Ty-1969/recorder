@@ -65,7 +65,20 @@ exports.handler = async (event, context) => {
 
   try {
     const { httpMethod, queryStringParameters, path } = event;
-    const recordId = path.split('/').pop();
+    
+    // 解析路徑：/.netlify/functions/records 或 /.netlify/functions/records/123
+    const pathParts = path.split('/').filter(p => p);
+    const recordsIndex = pathParts.indexOf('records');
+    let recordId = null;
+    
+    // 如果路徑是 /records/數字，則 recordId 是數字
+    if (recordsIndex !== -1 && pathParts.length > recordsIndex + 1) {
+      const nextPart = pathParts[recordsIndex + 1];
+      // 檢查是否為數字
+      if (nextPart && !isNaN(parseInt(nextPart)) && parseInt(nextPart) > 0) {
+        recordId = nextPart;
+      }
+    }
 
     // GET: 取得紀錄列表
     if (httpMethod === 'GET' && !recordId) {

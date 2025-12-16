@@ -13,11 +13,14 @@
         <div class="modal-content">
             <h2>登入</h2>
             <form id="authForm">
-                <input type="text" id="authUsername" placeholder="使用者名稱" required autofocus>
-                <button type="submit" class="btn btn-primary" id="authSubmit">登入</button>
+                <div class="auth-form-row">
+                    <input type="text" id="authUsername" class="auth-input" placeholder="使用者名稱" required autofocus>
+                    <input type="password" id="authPassword" class="auth-input" placeholder="密碼" required>
+                    <button type="submit" class="btn btn-primary" id="authSubmit">登入</button>
+                </div>
             </form>
             <p class="auth-switch" style="margin-top: 16px; color: var(--text-muted); font-size: 0.9rem;">
-                輸入使用者名稱即可登入，首次使用會自動建立帳號
+                輸入使用者名稱和密碼即可登入，首次使用會自動建立帳號
             </p>
         </div>
     </div>

@@ -36,9 +36,9 @@ exports.handler = async (event, context) => {
   const token = event.headers.authorization?.replace('Bearer ', '');
 
   try {
-    // 登入（使用使用者名稱）
+    // 登入（使用使用者名稱和密碼）
     if (path === 'login' && event.httpMethod === 'POST') {
-      const { username } = JSON.parse(event.body || '{}');
+      const { username, password } = JSON.parse(event.body || '{}');
 
       if (!username || !username.trim()) {
         return {
@@ -47,6 +47,29 @@ exports.handler = async (event, context) => {
           body: JSON.stringify({
             success: false,
             error: '使用者名稱為必填'
+          })
+        };
+      }
+
+      if (!password) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({
+            success: false,
+            error: '密碼為必填'
+          })
+        };
+      }
+
+      // 檢查密碼是否為369
+      if (password !== '369') {
+        return {
+          statusCode: 401,
+          headers,
+          body: JSON.stringify({
+            success: false,
+            error: '密碼錯誤'
           })
         };
       }

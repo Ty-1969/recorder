@@ -183,6 +183,8 @@ textarea.form-input {
     display: inline-flex;
     align-items: center;
     gap: 8px;
+    box-sizing: border-box;
+    height: auto;
 }
 
 .btn-primary {
@@ -507,6 +509,47 @@ textarea.form-input {
 }
 
 /* 登入表單 */
+.auth-form-row {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+}
+
+.auth-input {
+    flex: 1;
+    padding: 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 1rem;
+    transition: all 0.2s;
+    height: 44px;
+    box-sizing: border-box;
+    line-height: 1.2;
+}
+
+.auth-input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px rgba(74, 158, 255, 0.1);
+}
+
+.auth-input::placeholder {
+    color: var(--text-muted);
+}
+
+#authSubmit {
+    padding: 12px 24px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    height: 44px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
 .auth-switch {
     text-align: center;
     margin-top: 20px;

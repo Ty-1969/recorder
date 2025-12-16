@@ -130,9 +130,16 @@ async function handleAuth(e) {
     showLoading();
     
     const username = document.getElementById('authUsername').value.trim();
+    const password = document.getElementById('authPassword').value;
     
     if (!username) {
         alert('請輸入使用者名稱');
+        hideLoading();
+        return;
+    }
+    
+    if (!password) {
+        alert('請輸入密碼');
         hideLoading();
         return;
     }
@@ -141,7 +148,7 @@ async function handleAuth(e) {
         const response = await fetch(`${API_BASE}/users/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username })
+            body: JSON.stringify({ username, password })
         });
         
         const data = await response.json();

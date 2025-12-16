@@ -169,15 +169,29 @@ exports.handler = async (event, context) => {
 
     // POST: 新增紀錄
     if (httpMethod === 'POST') {
-      const { category_id, record_date, record_time, notes, data: recordData } = JSON.parse(event.body || '{}');
+      const body = JSON.parse(event.body || '{}');
+      const { category_id, record_date, record_time, notes, data: recordData } = body;
 
-      if (!category_id || !record_date) {
+      console.log('收到新增紀錄請求:', body);
+
+      if (!category_id || category_id === '' || isNaN(parseInt(category_id))) {
         return {
           statusCode: 400,
           headers,
           body: JSON.stringify({
             success: false,
-            error: '類別和日期為必填'
+            error: '類別為必填'
+          })
+        };
+      }
+
+      if (!record_date || record_date === '') {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({
+            success: false,
+            error: '日期為必填'
           })
         };
       }

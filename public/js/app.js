@@ -499,27 +499,33 @@ async function handleSaveRecord(e) {
             ? `${API_BASE}/records/${editingRecordId}`
             : `${API_BASE}/records`;
         
+        const requestBody = {
+            category_id: parseInt(categoryId),
+            record_date: recordDate,
+            record_time: recordTime || null,
+            notes: notes || null,
+            data: data
+        };
+        
+        console.log('發送請求:', requestBody); // 除錯用
+        
         const response = await fetch(url, {
             method: editingRecordId ? 'PUT' : 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({
-                category_id: parseInt(categoryId),
-                record_date: recordDate,
-                record_time: recordTime,
-                notes: notes,
-                data: data
-            })
+            body: JSON.stringify(requestBody)
         });
         
         const result = await response.json();
+        console.log('回應結果:', result); // 除錯用
+        
         if (result.success) {
             closeRecordModal();
             await loadRecords();
         } else {
-            alert(result.error || '儲存失敗');
+            alert(result.error || '儲存失敗：' + JSON.stringify(result));
         }
     } catch (error) {
         alert('發生錯誤：' + error.message);

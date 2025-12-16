@@ -98,9 +98,8 @@ INSERT INTO record_categories (name, icon, is_default, display_order) VALUES
     ('飲食', '🍎', TRUE, 1),
     ('血壓', '🩺', TRUE, 2),
     ('心跳', '❤️', TRUE, 3),
-    ('含氧量', '🫁', TRUE, 4),
-    ('藥物', '💊', TRUE, 5),
-    ('大小便', '🚽', TRUE, 6)
+    ('大便', '💩', TRUE, 4),
+    ('小便', '💧', TRUE, 5)
 ON CONFLICT DO NOTHING;
 
 -- 取得預設類別的 ID 並插入預設欄位
@@ -150,53 +149,33 @@ BEGIN
     END IF;
 END $$;
 
--- 含氧量類別欄位
+-- 大便類別欄位
 DO $$
 DECLARE
-    o2_category_id BIGINT;
+    poop_category_id BIGINT;
 BEGIN
-    SELECT id INTO o2_category_id FROM record_categories WHERE name = '含氧量' AND is_default = TRUE LIMIT 1;
+    SELECT id INTO poop_category_id FROM record_categories WHERE name = '大便' AND is_default = TRUE LIMIT 1;
     
-    IF o2_category_id IS NOT NULL THEN
+    IF poop_category_id IS NOT NULL THEN
         INSERT INTO category_fields (category_id, field_name, field_type, field_label, is_required, display_order, unit) VALUES
-            (o2_category_id, 'oxygen_level', 'number', '含氧量', TRUE, 1, '%')
+            (poop_category_id, 'count', 'number', '次數', FALSE, 1, '次'),
+            (poop_category_id, 'notes', 'text', '備註', FALSE, 2, NULL)
         ON CONFLICT DO NOTHING;
     END IF;
 END $$;
 
--- 藥物類別欄位
+-- 小便類別欄位
 DO $$
 DECLARE
-    med_category_id BIGINT;
+    pee_category_id BIGINT;
 BEGIN
-    SELECT id INTO med_category_id FROM record_categories WHERE name = '藥物' AND is_default = TRUE LIMIT 1;
+    SELECT id INTO pee_category_id FROM record_categories WHERE name = '小便' AND is_default = TRUE LIMIT 1;
     
-    IF med_category_id IS NOT NULL THEN
+    IF pee_category_id IS NOT NULL THEN
         INSERT INTO category_fields (category_id, field_name, field_type, field_label, is_required, display_order, unit) VALUES
-            (med_category_id, 'medicine_name', 'text', '藥物名稱', TRUE, 1, NULL),
-            (med_category_id, 'dose', 'number', '劑量', TRUE, 2, NULL),
-            (med_category_id, 'unit', 'text', '單位', TRUE, 3, NULL)
+            (pee_category_id, 'count', 'number', '次數', FALSE, 1, '次'),
+            (pee_category_id, 'notes', 'text', '備註', FALSE, 2, NULL)
         ON CONFLICT DO NOTHING;
-    END IF;
-END $$;
-
--- 大小便類別欄位
-DO $$
-DECLARE
-    toilet_category_id BIGINT;
-BEGIN
-    SELECT id INTO toilet_category_id FROM record_categories WHERE name = '大小便' AND is_default = TRUE LIMIT 1;
-    
-    IF toilet_category_id IS NOT NULL THEN
-        INSERT INTO category_fields (category_id, field_name, field_type, field_label, is_required, display_order, unit) VALUES
-            (toilet_category_id, 'type', 'select', '類型', TRUE, 1, NULL),
-            (toilet_category_id, 'count', 'number', '次數', FALSE, 2, '次')
-        ON CONFLICT DO NOTHING;
-        
-        -- 更新類型欄位的選項
-        UPDATE category_fields 
-        SET field_options = '["大便", "小便"]'::jsonb
-        WHERE category_id = toilet_category_id AND field_name = 'type';
     END IF;
 END $$;
 

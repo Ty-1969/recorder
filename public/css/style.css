@@ -511,12 +511,13 @@ textarea.form-input {
 /* 登入表單 */
 .auth-form-row {
     display: flex;
-    gap: 8px;
+    flex-direction: column;
+    gap: 16px;
     align-items: stretch;
 }
 
 .auth-input {
-    flex: 1;
+    width: 100%;
     padding: 12px;
     background: var(--bg-tertiary);
     border: 1px solid var(--border-color);
@@ -540,12 +541,12 @@ textarea.form-input {
 }
 
 #authSubmit {
+    width: 100%;
     padding: 12px 24px;
     white-space: nowrap;
-    flex-shrink: 0;
     height: 44px;
     box-sizing: border-box;
-    display: inline-flex;
+    display: flex;
     align-items: center;
     justify-content: center;
 }

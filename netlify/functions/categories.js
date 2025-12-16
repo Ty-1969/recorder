@@ -120,19 +120,106 @@ exports.handler = async (event, context) => {
 
     // GET: 取得類別的欄位定義
     if (httpMethod === 'GET' && categoryId && isFieldsEndpoint) {
+      // 確保 categoryId 是數字
+      const categoryIdNum = parseInt(categoryId);
+      if (isNaN(categoryIdNum)) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ success: false, error: '無效的類別 ID' })
+        };
+      }
+
       const { data, error } = await supabase
         .from('category_fields')
         .select('*')
-        .eq('category_id', categoryId)
-        .order('display_order', { ascending: true });
+        .eq('category_id', categoryIdNum)
+        .order('display_order', { ascending: true })
+        .order('id', { ascending: true });
 
       if (error) throw error;
 
-      // 解析 field_options JSON
-      const fields = (data || []).map(field => ({
-        ...field,
-        field_options: field.field_options ? (typeof field.field_options === 'string' ? JSON.parse(field.field_options) : field.field_options) : null
-      }));
+      // 調試：記錄原始資料
+      console.log(`[Categories] 類別 ${categoryIdNum} 的原始欄位數量:`, (data || []).length);
+      if (data && data.length > 0) {
+        const fieldNames = data.map(f => f.field_name);
+        const duplicates = fieldNames.filter((name, index) => fieldNames.indexOf(name) !== index);
+        if (duplicates.length > 0) {
+          console.warn(`[Categories] 發現重複欄位名稱:`, duplicates);
+        }
+      }
+
+      // 解析 field_options JSON 並去重（根據 field_name）
+      // 使用 Map 確保每個 field_name 只保留一個
+      const fieldsMap = new Map();
+      (data || []).forEach((field, index) => {
+        const fieldName = field.field_name;
+        
+        // 如果該欄位名稱尚未存在，直接加入
+        if (!fieldsMap.has(fieldName)) {
+          fieldsMap.set(fieldName, {
+            ...field,
+            _index: index,
+            field_options: field.field_options ? (typeof field.field_options === 'string' ? JSON.parse(field.field_options) : field.field_options) : null
+          });
+        } else {
+          // 如果已存在，比較並決定是否替換
+          const existing = fieldsMap.get(fieldName);
+          let shouldReplace = false;
+          
+          // 優先比較 display_order（較小者優先）
+          if (field.display_order < existing.display_order) {
+            shouldReplace = true;
+          } else if (field.display_order === existing.display_order) {
+            // display_order 相同時，優先保留 id 較小的
+            if (field.id && existing.id) {
+              shouldReplace = field.id < existing.id;
+            } else if (field.id && !existing.id) {
+              shouldReplace = true; // 有 id 的優先於沒有 id 的
+            } else {
+              // 都沒有 id 時，保留第一個遇到的（不替換）
+              shouldReplace = false;
+            }
+          }
+          
+          if (shouldReplace) {
+            console.log(`[Categories] 替換欄位 ${fieldName}: 舊 display_order=${existing.display_order}, 新 display_order=${field.display_order}`);
+            fieldsMap.set(fieldName, {
+              ...field,
+              _index: index,
+              field_options: field.field_options ? (typeof field.field_options === 'string' ? JSON.parse(field.field_options) : field.field_options) : null
+            });
+          } else {
+            console.log(`[Categories] 跳過重複欄位 ${fieldName} (索引: ${index}), 保留已存在的`);
+          }
+        }
+      });
+
+      // 轉換回陣列並排序，移除臨時的 _index 屬性
+      const fields = Array.from(fieldsMap.values())
+        .map(field => {
+          const { _index, ...rest } = field;
+          return rest;
+        })
+        .sort((a, b) => {
+          // 先按 display_order 排序
+          if (a.display_order !== b.display_order) {
+            return a.display_order - b.display_order;
+          }
+          // display_order 相同時，按 id 排序
+          if (a.id && b.id) {
+            return a.id - b.id;
+          }
+          return 0;
+        });
+
+      // 調試：確認去重後的結果
+      console.log(`[Categories] 類別 ${categoryIdNum} 去重後的欄位數量:`, fields.length);
+      const finalFieldNames = fields.map(f => f.field_name);
+      const finalDuplicates = finalFieldNames.filter((name, index) => finalFieldNames.indexOf(name) !== index);
+      if (finalDuplicates.length > 0) {
+        console.error(`[Categories] 去重後仍有重複欄位:`, finalDuplicates);
+      }
 
       return {
         statusCode: 200,

@@ -446,6 +446,9 @@ async function loadCategoryFields() {
     const categoryId = document.getElementById('recordCategory').value;
     if (!categoryId) {
         document.getElementById('recordFields').innerHTML = '';
+        // 顯示固定的備註欄位
+        const notesGroup = document.querySelector('#recordNotes').closest('.form-group');
+        if (notesGroup) notesGroup.style.display = '';
         return;
     }
     
@@ -457,6 +460,13 @@ async function loadCategoryFields() {
         
         const data = await response.json();
         if (data.success) {
+            // 檢查是否有 notes 欄位
+            const hasNotesField = data.fields.some(field => field.field_name === 'notes');
+            // 如果有 notes 欄位，隱藏固定的備註欄位
+            const notesGroup = document.querySelector('#recordNotes').closest('.form-group');
+            if (notesGroup) {
+                notesGroup.style.display = hasNotesField ? 'none' : '';
+            }
             renderFields(data.fields);
         }
     } catch (error) {
@@ -468,7 +478,90 @@ function renderFields(fields) {
     const container = document.getElementById('recordFields');
     container.innerHTML = '';
     
-    fields.forEach(field => {
+    if (!fields || !Array.isArray(fields) || fields.length === 0) {
+        console.warn('[renderFields] 沒有欄位資料');
+        return;
+    }
+    
+    // 調試：記錄原始資料
+    console.log('[renderFields] 收到欄位數量:', fields.length);
+    const originalFieldNames = fields.map(f => f.field_name);
+    const originalDuplicates = originalFieldNames.filter((name, index) => originalFieldNames.indexOf(name) !== index);
+    if (originalDuplicates.length > 0) {
+        console.warn('[renderFields] 後端返回的重複欄位:', originalDuplicates);
+    }
+    
+    // 前端去重：根據 field_name 去重，確保每個 field_name 只保留一個
+    // 使用 Map 確保每個 field_name 只保留一個，優先保留 display_order 較小的
+    const fieldsMap = new Map();
+    
+    fields.forEach((field, index) => {
+        if (!field || !field.field_name) {
+            console.warn('[renderFields] 跳過無效欄位:', field);
+            return;
+        }
+        
+        const fieldName = field.field_name;
+        
+        // 如果 Map 中還沒有這個欄位名稱，直接加入
+        if (!fieldsMap.has(fieldName)) {
+            fieldsMap.set(fieldName, { ...field, _index: index });
+        } else {
+            // 如果已存在，比較並決定是否替換
+            const existing = fieldsMap.get(fieldName);
+            let shouldReplace = false;
+            
+            // 優先比較 display_order（較小者優先）
+            if (field.display_order < existing.display_order) {
+                shouldReplace = true;
+            } else if (field.display_order === existing.display_order) {
+                // display_order 相同時，比較 id（較小者優先）
+                if (field.id && existing.id) {
+                    shouldReplace = field.id < existing.id;
+                } else if (field.id && !existing.id) {
+                    shouldReplace = true; // 有 id 的優先於沒有 id 的
+                } else {
+                    // 都沒有 id 時，保留第一個遇到的（不替換）
+                    shouldReplace = false;
+                }
+            }
+            
+            if (shouldReplace) {
+                console.log(`[renderFields] 替換欄位 ${fieldName}: 舊 display_order=${existing.display_order}, 新 display_order=${field.display_order}`);
+                fieldsMap.set(fieldName, { ...field, _index: index });
+            } else {
+                console.log(`[renderFields] 跳過重複欄位 ${fieldName} (索引: ${index}), 保留已存在的`);
+            }
+        }
+    });
+    
+    // 轉換回陣列並排序，移除臨時的 _index 屬性
+    const uniqueFields = Array.from(fieldsMap.values())
+        .map(field => {
+            const { _index, ...rest } = field;
+            return rest;
+        })
+        .sort((a, b) => {
+            // 先按 display_order 排序
+            if (a.display_order !== b.display_order) {
+                return a.display_order - b.display_order;
+            }
+            // display_order 相同時，按 id 排序
+            if (a.id && b.id) {
+                return a.id - b.id;
+            }
+            return 0;
+        });
+    
+    // 調試：確認去重後的結果
+    console.log('[renderFields] 去重後的欄位數量:', uniqueFields.length);
+    const finalFieldNames = uniqueFields.map(f => f.field_name);
+    const finalDuplicates = finalFieldNames.filter((name, index) => finalFieldNames.indexOf(name) !== index);
+    if (finalDuplicates.length > 0) {
+        console.error('[renderFields] 去重後仍有重複欄位:', finalDuplicates);
+    }
+    
+    uniqueFields.forEach(field => {
         const group = document.createElement('div');
         group.className = 'form-group';
         
@@ -496,6 +589,11 @@ function renderFields(fields) {
             input.type = 'number';
             input.step = 'any';
             input.className = 'form-input';
+        } else if (field.field_type === 'text' && field.field_name === 'notes') {
+            // notes 欄位使用 textarea
+            input = document.createElement('textarea');
+            input.className = 'form-input';
+            input.rows = 3;
         } else {
             input = document.createElement('input');
             input.type = field.field_type === 'date' ? 'date' : field.field_type === 'time' ? 'time' : 'text';
@@ -549,17 +647,31 @@ async function handleSaveRecord(e) {
     
     // 直接從 DOM 元素取得值
     const timeInput = document.getElementById('recordTime');
-    const notesInput = document.getElementById('recordNotes');
     const recordTime = timeInput ? (timeInput.value || null) : null;
-    const notes = notesInput ? (notesInput.value || null) : null;
     
     const data = {};
-    const fields = document.querySelectorAll('#recordFields input, #recordFields select');
+    // 包含 input, select 和 textarea
+    const fields = document.querySelectorAll('#recordFields input, #recordFields select, #recordFields textarea');
+    let notes = null;
+    
     fields.forEach(field => {
-        if (field.value && field.value.trim() !== '') {
+        if (field.name === 'notes') {
+            // 如果動態欄位中有 notes，優先使用
+            if (field.value && field.value.trim() !== '') {
+                notes = field.value.trim();
+            }
+        } else if (field.value && field.value.trim() !== '') {
             data[field.name] = field.value;
         }
     });
+    
+    // 如果動態欄位中沒有 notes，使用固定的備註欄位
+    if (!notes) {
+        const notesInput = document.getElementById('recordNotes');
+        notes = notesInput && notesInput.value && notesInput.value.trim() !== '' 
+            ? notesInput.value.trim() 
+            : null;
+    }
     
     try {
         const token = localStorage.getItem('auth_token');
@@ -613,12 +725,20 @@ async function editRecord(id) {
     
     editingRecordId = id;
     document.getElementById('recordModalTitle').textContent = '編輯紀錄';
-    document.getElementById('recordCategory').value = record.category_id;
+    
+    // 暫時移除 change 事件監聽器，避免觸發重複載入
+    const categorySelect = document.getElementById('recordCategory');
+    const changeHandler = loadCategoryFields;
+    categorySelect.removeEventListener('change', changeHandler);
+    
+    categorySelect.value = record.category_id;
     document.getElementById('recordDate').value = record.record_date;
     document.getElementById('recordTime').value = record.record_time || '';
-    document.getElementById('recordNotes').value = record.notes || '';
     
     await loadCategoryFields();
+    
+    // 重新添加事件監聽器
+    categorySelect.addEventListener('change', changeHandler);
     
     // 填入現有資料
     setTimeout(() => {
@@ -627,6 +747,18 @@ async function editRecord(id) {
                 const field = document.querySelector(`[name="${key}"]`);
                 if (field) field.value = value;
             });
+        }
+        
+        // 處理 notes 欄位：如果動態欄位中有 notes，填入動態欄位；否則填入固定欄位
+        const notesField = document.querySelector('#recordFields [name="notes"]');
+        const notesInput = document.getElementById('recordNotes');
+        if (notesField) {
+            // 如果有動態 notes 欄位，優先使用
+            notesField.value = record.notes || '';
+            if (notesInput) notesInput.value = '';
+        } else if (notesInput) {
+            // 如果沒有動態 notes 欄位，使用固定的備註欄位
+            notesInput.value = record.notes || '';
         }
     }, 300);
     

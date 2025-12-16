@@ -190,6 +190,11 @@ ALTER TABLE category_fields ENABLE ROW LEVEL SECURITY;
 
 -- 建立 RLS 政策（簡化版，基於 token 中的使用者 ID）
 -- 注意：實際的權限檢查在 Netlify Functions 中進行
+-- 先刪除已存在的政策
+DROP POLICY IF EXISTS "所有人可以讀取使用者資料" ON user_profiles;
+DROP POLICY IF EXISTS "所有人可以新增使用者資料" ON user_profiles;
+DROP POLICY IF EXISTS "所有人可以修改使用者資料" ON user_profiles;
+
 CREATE POLICY "所有人可以讀取使用者資料" ON user_profiles
     FOR SELECT USING (true);
 

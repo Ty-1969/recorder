@@ -81,12 +81,14 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- 建立觸發器
+-- 建立觸發器（先刪除已存在的觸發器）
+DROP TRIGGER IF EXISTS update_user_profiles_updated_at ON user_profiles;
 CREATE TRIGGER update_user_profiles_updated_at 
     BEFORE UPDATE ON user_profiles
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_health_records_updated_at ON health_records;
 CREATE TRIGGER update_health_records_updated_at 
     BEFORE UPDATE ON health_records
     FOR EACH ROW
@@ -199,6 +201,11 @@ CREATE POLICY "所有人可以修改使用者資料" ON user_profiles
 
 -- 健康紀錄：權限檢查在 Netlify Functions 中進行
 -- RLS 政策設為允許所有操作，實際權限由 Functions 控制
+DROP POLICY IF EXISTS "所有人可以讀取健康紀錄" ON health_records;
+DROP POLICY IF EXISTS "所有人可以新增健康紀錄" ON health_records;
+DROP POLICY IF EXISTS "所有人可以修改健康紀錄" ON health_records;
+DROP POLICY IF EXISTS "所有人可以刪除健康紀錄" ON health_records;
+
 CREATE POLICY "所有人可以讀取健康紀錄" ON health_records
     FOR SELECT USING (true);
 
@@ -212,6 +219,11 @@ CREATE POLICY "所有人可以刪除健康紀錄" ON health_records
     FOR DELETE USING (true);
 
 -- 紀錄資料：權限檢查在 Netlify Functions 中進行
+DROP POLICY IF EXISTS "所有人可以讀取紀錄資料" ON record_data;
+DROP POLICY IF EXISTS "所有人可以新增紀錄資料" ON record_data;
+DROP POLICY IF EXISTS "所有人可以修改紀錄資料" ON record_data;
+DROP POLICY IF EXISTS "所有人可以刪除紀錄資料" ON record_data;
+
 CREATE POLICY "所有人可以讀取紀錄資料" ON record_data
     FOR SELECT USING (true);
 
@@ -225,6 +237,11 @@ CREATE POLICY "所有人可以刪除紀錄資料" ON record_data
     FOR DELETE USING (true);
 
 -- 類別：權限檢查在 Netlify Functions 中進行
+DROP POLICY IF EXISTS "所有人可以讀取類別" ON record_categories;
+DROP POLICY IF EXISTS "所有人可以新增類別" ON record_categories;
+DROP POLICY IF EXISTS "所有人可以修改類別" ON record_categories;
+DROP POLICY IF EXISTS "所有人可以刪除類別" ON record_categories;
+
 CREATE POLICY "所有人可以讀取類別" ON record_categories
     FOR SELECT USING (true);
 
@@ -238,6 +255,11 @@ CREATE POLICY "所有人可以刪除類別" ON record_categories
     FOR DELETE USING (true);
 
 -- 欄位定義：權限檢查在 Netlify Functions 中進行
+DROP POLICY IF EXISTS "所有人可以讀取欄位定義" ON category_fields;
+DROP POLICY IF EXISTS "所有人可以新增欄位定義" ON category_fields;
+DROP POLICY IF EXISTS "所有人可以修改欄位定義" ON category_fields;
+DROP POLICY IF EXISTS "所有人可以刪除欄位定義" ON category_fields;
+
 CREATE POLICY "所有人可以讀取欄位定義" ON category_fields
     FOR SELECT USING (true);
 

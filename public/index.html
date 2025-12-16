@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>健康紀錄系統</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <!-- 登入模態框 -->
+    <div id="authModal" class="modal">
+        <div class="modal-content">
+            <h2>登入</h2>
+            <form id="authForm">
+                <input type="text" id="authUsername" placeholder="使用者名稱" required autofocus>
+                <button type="submit" class="btn btn-primary" id="authSubmit">登入</button>
+            </form>
+            <p class="auth-switch" style="margin-top: 16px; color: var(--text-muted); font-size: 0.9rem;">
+                輸入使用者名稱即可登入，首次使用會自動建立帳號
+            </p>
+        </div>
+    </div>
+
+    <!-- 主應用程式 -->
+    <div id="app" class="app-container" style="display: none;">
+        <!-- 頂部導航 -->
+        <header class="header">
+            <div class="header-content">
+                <h1 class="logo">🏥 健康紀錄</h1>
+                <div class="header-actions">
+                    <button class="btn-icon" id="statsBtn" title="統計圖表">📊</button>
+                    <button class="btn-icon" id="exportBtn" title="匯出資料">📤</button>
+                    <button class="btn-icon" id="settingsBtn" title="設定">⚙️</button>
+                    <button class="btn-icon" id="logoutBtn" title="登出">🚪</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- 主要內容區域 -->
+        <main class="main-content">
+            <!-- 工具列 -->
+            <div class="toolbar">
+                <div class="toolbar-left">
+                    <button class="btn btn-primary" id="addRecordBtn">
+                        <span class="btn-icon-text">+</span> 新增紀錄
+                    </button>
+                    <select id="categoryFilter" class="filter-select">
+                        <option value="">全部類別</option>
+                    </select>
+                </div>
+                <div class="toolbar-right">
+                    <button class="btn-icon" id="prevWeekBtn" title="上一週">◀</button>
+                    <input type="date" id="datePicker" class="date-picker">
+                    <button class="btn-icon" id="nextWeekBtn" title="下一週">▶</button>
+                    <button class="btn-icon" id="todayBtn" title="今天">今天</button>
+                </div>
+            </div>
+
+            <!-- 週視圖（桌面版） -->
+            <div id="weekView" class="week-view">
+                <div class="week-header">
+                    <div class="day-header" v-for="day in weekDays">
+                        <div class="day-name">{{ day.name }}</div>
+                        <div class="day-date">{{ day.date }}</div>
+                    </div>
+                </div>
+                <div class="week-content">
+                    <div class="day-column" v-for="day in weekDays" :data-date="day.fullDate">
+                        <!-- 卡片會動態插入這裡 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 日視圖（手機版） -->
+            <div id="dayView" class="day-view">
+                <div class="day-records" id="dayRecords">
+                    <!-- 卡片會動態插入這裡 -->
+                </div>
+            </div>
+
+            <!-- 統計視圖 -->
+            <div id="statsView" class="stats-view" style="display: none;">
+                <div class="stats-header">
+                    <h2>統計圖表</h2>
+                    <select id="statsPeriod" class="filter-select">
+                        <option value="7">最近7天</option>
+                        <option value="30">最近30天</option>
+                        <option value="90">最近90天</option>
+                    </select>
+                </div>
+                <div class="charts-container">
+                    <div class="chart-card">
+                        <h3>血壓趨勢</h3>
+                        <canvas id="bpChart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>心跳趨勢</h3>
+                        <canvas id="hrChart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>飲食統計</h3>
+                        <canvas id="dietChart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>藥物使用</h3>
+                        <canvas id="medChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 新增/編輯紀錄模態框 -->
+    <div id="recordModal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2 id="recordModalTitle">新增紀錄</h2>
+                <button class="btn-close" id="closeRecordModal">×</button>
+            </div>
+            <form id="recordForm">
+                <div class="form-group">
+                    <label>類別</label>
+                    <select id="recordCategory" class="form-input" required>
+                        <option value="">請選擇類別</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>日期</label>
+                    <input type="date" id="recordDate" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label>時間（選填）</label>
+                    <input type="time" id="recordTime" class="form-input">
+                </div>
+                <div id="recordFields">
+                    <!-- 動態欄位會插入這裡 -->
+                </div>
+                <div class="form-group">
+                    <label>備註（選填）</label>
+                    <textarea id="recordNotes" class="form-input" rows="3"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" id="cancelRecordBtn">取消</button>
+                    <button type="submit" class="btn btn-primary">儲存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 載入中指示器 -->
+    <div id="loading" class="loading-overlay" style="display: none;">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="js/app.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/export.js"></script>
+</body>
+</html>
+

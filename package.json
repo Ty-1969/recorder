@@ -1,0 +1,28 @@
+{
+  "name": "health-recorder",
+  "version": "1.0.0",
+  "description": "健康紀錄系統 - 多使用者支援、統計圖表、資料匯出",
+  "main": "index.html",
+  "scripts": {
+    "dev": "netlify dev",
+    "build": "echo 'No build step required'",
+    "start": "netlify dev"
+  },
+  "keywords": [
+    "health",
+    "recorder",
+    "netlify",
+    "postgresql",
+    "supabase"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "chart.js": "^4.4.0"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.0.0"
+  }
+}
+

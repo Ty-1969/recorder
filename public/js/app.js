@@ -524,7 +524,7 @@ async function handleSaveRecord(e) {
             : `${API_BASE}/records`;
         
         const requestBody = {
-            category_id: parseInt(categoryId),
+            category_id: categoryIdNum,
             record_date: recordDate,
             record_time: recordTime || null,
             notes: notes || null,

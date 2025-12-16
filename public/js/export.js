@@ -18,7 +18,9 @@ async function exportData(format) {
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `health_records_${startDate}_${endDate}.${format === 'pdf' ? 'pdf' : 'xlsx'}`;
+            // 後端返回的是 CSV 格式，所以 Excel 匯出也使用 .csv 副檔名
+            const extension = format === 'pdf' ? 'pdf' : 'csv';
+            a.download = `health_records_${startDate}_${endDate}.${extension}`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);

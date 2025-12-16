@@ -114,6 +114,8 @@ exports.handler = async (event, context) => {
 
       const csvWithBOM = '\ufeff' + csv; // UTF-8 BOM for Excel
 
+      // 目前都返回 CSV 格式，所以檔名統一使用 .csv
+      // 注意：Excel 可以開啟 CSV 檔案，所以不需要真正的 .xlsx 格式
       return {
         statusCode: 200,
         headers: {

@@ -100,14 +100,21 @@ exports.handler = async (event, context) => {
 
       const { data, error } = await query;
 
-      if (error) throw error;
+      if (error) {
+        console.error('查詢紀錄錯誤:', error);
+        throw error;
+      }
 
       // 整理資料格式
       const records = (data || []).map(record => {
         const dataObj = {};
         if (record.record_data && Array.isArray(record.record_data)) {
           record.record_data.forEach(item => {
-            dataObj[item.field_name] = item.field_value_json || item.field_value;
+            if (item && item.field_name) {
+              dataObj[item.field_name] = item.field_value_json !== null && item.field_value_json !== undefined 
+                ? item.field_value_json 
+                : item.field_value;
+            }
           });
         }
 

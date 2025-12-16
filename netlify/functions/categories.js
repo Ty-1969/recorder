@@ -62,11 +62,26 @@ exports.handler = async (event, context) => {
 
   try {
     const { httpMethod, path } = event;
-    const pathParts = path.split('/');
-    const categoryId = pathParts[pathParts.length - 2] === 'categories' && pathParts[pathParts.length - 1] !== 'categories' 
-      ? pathParts[pathParts.length - 1] 
-      : null;
-    const isFieldsEndpoint = pathParts[pathParts.length - 1] === 'fields';
+    
+    // 解析路徑：/.netlify/functions/categories/1/fields 或 /.netlify/functions/categories
+    // Netlify Functions 的路徑格式：/.netlify/functions/categories 或 /.netlify/functions/categories/1/fields
+    let categoryId = null;
+    let isFieldsEndpoint = false;
+    
+    // 使用正則表達式匹配路徑
+    const fieldsMatch = path.match(/categories\/(\d+)\/fields/);
+    if (fieldsMatch) {
+      categoryId = fieldsMatch[1];
+      isFieldsEndpoint = true;
+    } else {
+      // 檢查是否只是 categories/數字
+      const categoryMatch = path.match(/categories\/(\d+)$/);
+      if (categoryMatch) {
+        categoryId = categoryMatch[1];
+      }
+    }
+    
+    console.log('Categories path:', path, 'categoryId:', categoryId, 'isFieldsEndpoint:', isFieldsEndpoint);
 
     // GET: 取得所有類別
     if (httpMethod === 'GET' && !categoryId && !isFieldsEndpoint) {

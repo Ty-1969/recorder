@@ -506,8 +506,11 @@ async function handleSaveRecord(e) {
     
     showLoading();
     
-    const recordTime = formData.get('recordTime') || null;
-    const notes = formData.get('recordNotes') || null;
+    // 直接從 DOM 元素取得值
+    const timeInput = document.getElementById('recordTime');
+    const notesInput = document.getElementById('recordNotes');
+    const recordTime = timeInput ? (timeInput.value || null) : null;
+    const notes = notesInput ? (notesInput.value || null) : null;
     
     const data = {};
     const fields = document.querySelectorAll('#recordFields input, #recordFields select');

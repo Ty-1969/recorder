@@ -61,13 +61,55 @@
             <!-- 週視圖（桌面版） -->
             <div id="weekView" class="week-view">
                 <div class="week-header">
-                    <div class="day-header" v-for="day in weekDays">
-                        <div class="day-name">{{ day.name }}</div>
-                        <div class="day-date">{{ day.date }}</div>
+                    <div class="day-header">
+                        <div class="day-name">日</div>
+                        <div class="day-date">12/14</div>
+                    </div>
+                    <div class="day-header">
+                        <div class="day-name">一</div>
+                        <div class="day-date">12/15</div>
+                    </div>
+                    <div class="day-header">
+                        <div class="day-name">二</div>
+                        <div class="day-date">12/16</div>
+                    </div>
+                    <div class="day-header">
+                        <div class="day-name">三</div>
+                        <div class="day-date">12/17</div>
+                    </div>
+                    <div class="day-header">
+                        <div class="day-name">四</div>
+                        <div class="day-date">12/18</div>
+                    </div>
+                    <div class="day-header">
+                        <div class="day-name">五</div>
+                        <div class="day-date">12/19</div>
+                    </div>
+                    <div class="day-header">
+                        <div class="day-name">六</div>
+                        <div class="day-date">12/20</div>
                     </div>
                 </div>
                 <div class="week-content">
-                    <div class="day-column" v-for="day in weekDays" :data-date="day.fullDate">
+                    <div class="day-column" data-date="">
+                        <!-- 卡片會動態插入這裡 -->
+                    </div>
+                    <div class="day-column" data-date="">
+                        <!-- 卡片會動態插入這裡 -->
+                    </div>
+                    <div class="day-column" data-date="">
+                        <!-- 卡片會動態插入這裡 -->
+                    </div>
+                    <div class="day-column" data-date="">
+                        <!-- 卡片會動態插入這裡 -->
+                    </div>
+                    <div class="day-column" data-date="">
+                        <!-- 卡片會動態插入這裡 -->
+                    </div>
+                    <div class="day-column" data-date="">
+                        <!-- 卡片會動態插入這裡 -->
+                    </div>
+                    <div class="day-column" data-date="">
                         <!-- 卡片會動態插入這裡 -->
                     </div>
                 </div>

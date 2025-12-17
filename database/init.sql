@@ -165,7 +165,7 @@ BEGIN
     
     IF poop_category_id IS NOT NULL THEN
         INSERT INTO category_fields (category_id, field_name, field_type, field_label, is_required, display_order, unit) VALUES
-            (poop_category_id, 'count', 'number', '次數', FALSE, 1, '次'),
+            (poop_category_id, 'weight', 'number', '重量', FALSE, 1, 'g'),
             (poop_category_id, 'notes', 'text', '備註', FALSE, 2, NULL)
         ON CONFLICT DO NOTHING;
     END IF;
@@ -180,7 +180,7 @@ BEGIN
     
     IF pee_category_id IS NOT NULL THEN
         INSERT INTO category_fields (category_id, field_name, field_type, field_label, is_required, display_order, unit) VALUES
-            (pee_category_id, 'count', 'number', '次數', FALSE, 1, '次'),
+            (pee_category_id, 'weight', 'number', '重量', FALSE, 1, 'c.c.'),
             (pee_category_id, 'notes', 'text', '備註', FALSE, 2, NULL)
         ON CONFLICT DO NOTHING;
     END IF;

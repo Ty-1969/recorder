@@ -1,10 +1,15 @@
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_KEY;
+const supabaseUrl = process.env.SUPABASE_URL?.trim();
+const supabaseKey = process.env.SUPABASE_KEY?.trim();
 
 if (!supabaseUrl || !supabaseKey) {
-  console.error('Supabase 環境變數未設定');
+  console.error('Supabase 環境變數未設定', {
+    hasUrl: !!supabaseUrl,
+    hasKey: !!supabaseKey,
+    urlLength: supabaseUrl?.length || 0,
+    keyLength: supabaseKey?.length || 0
+  });
 }
 
 const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;

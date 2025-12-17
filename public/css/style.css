@@ -173,10 +173,10 @@ textarea.form-input {
 
 /* 按鈕 */
 .btn {
-    padding: 12px 24px;
+    padding: 10px 20px;
     border: none;
     border-radius: 8px;
-    font-size: 1rem;
+    font-size: 0.95rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
@@ -184,7 +184,7 @@ textarea.form-input {
     align-items: center;
     gap: 8px;
     box-sizing: border-box;
-    height: auto;
+    height: 41px;
 }
 
 .btn-primary {
@@ -213,11 +213,11 @@ textarea.form-input {
     color: var(--text-secondary);
     font-size: 1.2rem;
     cursor: pointer;
-    padding: 8px;
+    padding: 0;
     border-radius: 6px;
     transition: all 0.2s;
-    width: 40px;
-    height: 40px;
+    width: 41px;
+    height: 41px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -226,6 +226,26 @@ textarea.form-input {
 .btn-icon:hover {
     background: var(--bg-tertiary);
     color: var(--text-primary);
+}
+
+#todayBtn {
+    width: auto;
+    padding: 10px 16px;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-weight: 600;
+    border: 1px solid var(--border-color);
+    height: 41px;
+    box-sizing: border-box;
+    font-size: 0.95rem;
+}
+
+#todayBtn:hover {
+    background: var(--accent-primary);
+    color: white;
+    border-color: var(--accent-primary);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(74, 158, 255, 0.3);
 }
 
 .btn-icon-text {
@@ -281,18 +301,55 @@ textarea.form-input {
 /* 工具列 */
 .toolbar {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-    flex-wrap: wrap;
+    flex-direction: column;
     gap: 12px;
+    margin-bottom: 24px;
 }
 
-.toolbar-left,
-.toolbar-right {
+.toolbar-row {
     display: flex;
     align-items: center;
     gap: 12px;
+    flex-wrap: wrap;
+}
+
+.toolbar-row-top {
+    justify-content: space-between;
+}
+
+.toolbar-row-bottom {
+    justify-content: center;
+}
+
+@media (min-width: 768px) {
+    .toolbar {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .toolbar-row-top {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex: 1;
+    }
+    
+    .toolbar-row-top #addRecordBtn {
+        flex-shrink: 0;
+    }
+    
+    .toolbar-row-top #categoryFilter {
+        margin-left: auto;
+        flex-shrink: 0;
+    }
+    
+    .toolbar-row-bottom {
+        flex: 0 0 auto;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-left: 12px;
+    }
 }
 
 .filter-select {
@@ -304,6 +361,8 @@ textarea.form-input {
     font-size: 0.95rem;
     cursor: pointer;
     transition: all 0.2s;
+    height: 41px;
+    box-sizing: border-box;
 }
 
 .filter-select:focus {
@@ -312,13 +371,17 @@ textarea.form-input {
 }
 
 .date-picker {
-    padding: 10px;
+    padding: 10px 12px;
     background: var(--bg-tertiary);
     border: 1px solid var(--border-color);
     border-radius: 8px;
     color: var(--text-primary);
     font-size: 0.95rem;
     cursor: pointer;
+    height: 41px;
+    box-sizing: border-box;
+    min-width: 120px;
+    max-width: 140px;
 }
 
 /* 週視圖 */
@@ -387,6 +450,8 @@ textarea.form-input {
     transition: all 0.2s;
     cursor: pointer;
     position: relative;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .record-card:hover {
@@ -412,13 +477,19 @@ textarea.form-input {
 }
 
 .record-time {
-    font-size: 0.85rem;
-    color: var(--text-muted);
+    font-size: 1rem;
+    color: var(--accent-primary);
+    font-weight: 600;
+    white-space: nowrap;
 }
 
 .record-actions {
     display: flex;
     gap: 4px;
+    justify-content: flex-end;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
 }
 
 .record-action-btn {
@@ -447,15 +518,22 @@ textarea.form-input {
     display: flex;
     justify-content: space-between;
     font-size: 0.95rem;
+    word-break: break-word;
+    flex-wrap: wrap;
+    gap: 4px;
 }
 
 .record-field-label {
     color: var(--text-secondary);
+    flex-shrink: 0;
 }
 
 .record-field-value {
     color: var(--text-primary);
     font-weight: 500;
+    text-align: right;
+    flex: 1;
+    min-width: 0;
 }
 
 .record-notes {
@@ -588,14 +666,58 @@ textarea.form-input {
     }
     
     .toolbar {
-        flex-direction: column;
-        align-items: stretch;
+        gap: 8px;
     }
     
-    .toolbar-left,
-    .toolbar-right {
+    .toolbar-row-top {
         width: 100%;
         justify-content: space-between;
+        gap: 8px;
+    }
+    
+    .toolbar-row-bottom {
+        width: 100%;
+        justify-content: center;
+        gap: 6px;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: 4px 0;
+    }
+    
+    .toolbar-row-bottom::-webkit-scrollbar {
+        display: none;
+    }
+    
+    #addRecordBtn {
+        flex-shrink: 0;
+        white-space: nowrap;
+        font-size: 0.9rem;
+        padding: 10px 16px;
+        height: 41px;
+    }
+    
+    #categoryFilter {
+        flex-shrink: 0;
+        min-width: 115px;
+        height: 41px;
+    }
+    
+    .toolbar-row-bottom .btn-icon {
+        flex-shrink: 0;
+        width: 41px;
+        height: 41px;
+    }
+    
+    .toolbar-row-bottom .date-picker {
+        flex-shrink: 0;
+        min-width: 120px;
+        max-width: 140px;
+    }
+    
+    #todayBtn {
+        flex-shrink: 0;
+        height: 41px;
     }
     
     .charts-container {

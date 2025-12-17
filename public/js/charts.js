@@ -7,14 +7,32 @@ async function loadStats() {
     try {
         const token = localStorage.getItem('auth_token');
         const period = document.getElementById('statsPeriod').value || '7';
+        const statsDate = document.getElementById('statsDate');
         
-        const response = await fetch(`${API_BASE}/records/stats?period=${period}`, {
+        // 顯示/隱藏日期選擇器
+        if (period === '1') {
+            statsDate.style.display = 'block';
+            if (!statsDate.value) {
+                // 如果沒有選擇日期，預設為今天
+                const today = new Date();
+                statsDate.value = today.toISOString().split('T')[0];
+            }
+        } else {
+            statsDate.style.display = 'none';
+        }
+        
+        let url = `${API_BASE}/stats?period=${period}`;
+        if (period === '1' && statsDate.value) {
+            url += `&date=${statsDate.value}`;
+        }
+        
+        const response = await fetch(url, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         
         const data = await response.json();
         if (data.success) {
-            renderCharts(data.stats);
+            renderCharts(data.stats, period === '1');
         }
     } catch (error) {
         console.error('載入統計失敗:', error);
@@ -24,15 +42,15 @@ async function loadStats() {
 }
 
 // 渲染所有圖表
-function renderCharts(stats) {
-    renderBPChart(stats.blood_pressure || []);
-    renderHRChart(stats.heart_rate || []);
+function renderCharts(stats, isSingleDay = false) {
+    renderBPChart(stats.blood_pressure || [], isSingleDay);
+    renderHRChart(stats.heart_rate || [], isSingleDay);
     renderDietChart(stats.diet || []);
     renderMedChart(stats.medication || []);
 }
 
 // 血壓趨勢圖
-function renderBPChart(data) {
+function renderBPChart(data, isSingleDay = false) {
     const chartCard = document.querySelector('#bpChart')?.parentElement;
     if (!chartCard) return;
     
@@ -54,40 +72,66 @@ function renderBPChart(data) {
     const ctx = document.getElementById('bpChart');
     if (!ctx) return;
     
-    const labels = data.map(d => formatChartDate(d.date));
+    const labels = data.map(d => isSingleDay ? formatChartHour(d.date) : formatChartDate(d.date));
     const systolic = data.map(d => d.systolic);
     const diastolic = data.map(d => d.diastolic);
+    const heartRate = data.map(d => d.heart_rate || null);
+    
+    // 檢查是否有心跳數據
+    const hasHeartRate = heartRate.some(hr => hr !== null && hr > 0);
     
     if (charts.bp) {
         charts.bp.destroy();
+    }
+    
+    const datasets = [
+        {
+            label: '收縮壓',
+            data: systolic,
+            borderColor: '#f87171',
+            backgroundColor: 'rgba(248, 113, 113, 0.1)',
+            tension: 0.4,
+            fill: true,
+            yAxisID: 'y'
+        },
+        {
+            label: '舒張壓',
+            data: diastolic,
+            borderColor: '#4ade80',
+            backgroundColor: 'rgba(74, 222, 128, 0.1)',
+            tension: 0.4,
+            fill: true,
+            yAxisID: 'y'
+        }
+    ];
+    
+    // 如果有心跳數據，添加到圖表中
+    if (hasHeartRate) {
+        datasets.push({
+            label: '心跳',
+            data: heartRate,
+            borderColor: '#4a9eff',
+            backgroundColor: 'rgba(74, 158, 255, 0.1)',
+            tension: 0.4,
+            fill: false,
+            yAxisID: 'y1',
+            borderDash: [5, 5]
+        });
     }
     
     charts.bp = new Chart(ctx, {
         type: 'line',
         data: {
             labels: labels,
-            datasets: [
-                {
-                    label: '收縮壓',
-                    data: systolic,
-                    borderColor: '#f87171',
-                    backgroundColor: 'rgba(248, 113, 113, 0.1)',
-                    tension: 0.4,
-                    fill: true
-                },
-                {
-                    label: '舒張壓',
-                    data: diastolic,
-                    borderColor: '#4ade80',
-                    backgroundColor: 'rgba(74, 222, 128, 0.1)',
-                    tension: 0.4,
-                    fill: true
-                }
-            ]
+            datasets: datasets
         },
         options: {
             responsive: true,
             maintainAspectRatio: true,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
             plugins: {
                 legend: {
                     labels: {
@@ -101,11 +145,26 @@ function renderBPChart(data) {
                     grid: { color: '#333333' }
                 },
                 y: {
+                    type: 'linear',
+                    position: 'left',
                     ticks: { color: '#707070' },
                     grid: { color: '#333333' },
                     title: {
                         display: true,
                         text: 'mmHg',
+                        color: '#b0b0b0'
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    position: 'right',
+                    ticks: { color: '#707070' },
+                    grid: {
+                        drawOnChartArea: false
+                    },
+                    title: {
+                        display: true,
+                        text: 'bpm',
                         color: '#b0b0b0'
                     }
                 }
@@ -115,7 +174,7 @@ function renderBPChart(data) {
 }
 
 // 心跳趨勢圖
-function renderHRChart(data) {
+function renderHRChart(data, isSingleDay = false) {
     const chartCard = document.querySelector('#hrChart')?.parentElement;
     if (!chartCard) return;
     
@@ -137,7 +196,7 @@ function renderHRChart(data) {
     const ctx = document.getElementById('hrChart');
     if (!ctx) return;
     
-    const labels = data.map(d => formatChartDate(d.date));
+    const labels = data.map(d => isSingleDay ? formatChartHour(d.date) : formatChartDate(d.date));
     const values = data.map(d => d.heart_rate);
     
     if (charts.hr) {
@@ -315,6 +374,13 @@ function formatChartDate(dateStr) {
     return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
+function formatChartHour(dateStr) {
+    const date = new Date(dateStr);
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
 function generateColors(count) {
     const colors = [
         '#4a9eff', '#f87171', '#4ade80', '#fbbf24',
@@ -330,8 +396,14 @@ function generateColors(count) {
 // 監聽統計期間變更
 document.addEventListener('DOMContentLoaded', () => {
     const statsPeriod = document.getElementById('statsPeriod');
+    const statsDate = document.getElementById('statsDate');
+    
     if (statsPeriod) {
         statsPeriod.addEventListener('change', loadStats);
+    }
+    
+    if (statsDate) {
+        statsDate.addEventListener('change', loadStats);
     }
 });
 

@@ -1,7 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_KEY;
+const supabaseUrl = process.env.SUPABASE_URL?.trim();
+const supabaseKey = process.env.SUPABASE_KEY?.trim();
 const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
 const headers = {
@@ -62,80 +62,157 @@ exports.handler = async (event, context) => {
 
   try {
     const period = parseInt(event.queryStringParameters?.period || '7');
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - period);
+    const queryDate = event.queryStringParameters?.date;
+    const isSingleDay = period === 1;
+    
+    let startDateStr, endDateStr;
+    if (isSingleDay && queryDate) {
+      // 單日模式：使用指定的日期
+      startDateStr = queryDate;
+      endDateStr = queryDate;
+    } else {
+      // 多日模式：計算日期範圍
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - period);
+      startDateStr = startDate.toISOString().split('T')[0];
+      endDateStr = endDate.toISOString().split('T')[0];
+    }
 
-    const startDateStr = startDate.toISOString().split('T')[0];
-    const endDateStr = endDate.toISOString().split('T')[0];
+    // 先取得所有需要的類別 ID
+    const { data: bpCategory } = await supabase
+      .from('record_categories')
+      .select('id')
+      .eq('name', '血壓')
+      .eq('is_default', true)
+      .single();
+
+    const { data: hrCategory } = await supabase
+      .from('record_categories')
+      .select('id')
+      .eq('name', '心跳')
+      .eq('is_default', true)
+      .single();
+
+    const { data: dietCategory } = await supabase
+      .from('record_categories')
+      .select('id')
+      .eq('name', '飲食')
+      .eq('is_default', true)
+      .single();
+
+    const { data: medCategory } = await supabase
+      .from('record_categories')
+      .select('id')
+      .eq('name', '藥物')
+      .eq('is_default', true)
+      .single();
 
     // 取得血壓紀錄
-    const { data: bpRecords } = await supabase
-      .from('health_records')
-      .select(`
-        record_date,
-        record_data (field_name, field_value)
-      `)
-      .eq('user_id', user.id)
-      .eq('category_id', (await supabase.from('record_categories').select('id').eq('name', '血壓').eq('is_default', true).single()).data?.id)
-      .gte('record_date', startDateStr)
-      .lte('record_date', endDateStr)
-      .order('record_date', { ascending: true });
+    let bpRecords = null;
+    if (bpCategory?.id) {
+      const query = supabase
+        .from('health_records')
+        .select(`
+          record_date,
+          record_time,
+          record_data (field_name, field_value)
+        `)
+        .eq('user_id', user.id)
+        .eq('category_id', bpCategory.id)
+        .gte('record_date', startDateStr)
+        .lte('record_date', endDateStr);
+      
+      if (isSingleDay) {
+        query.order('record_time', { ascending: true });
+      } else {
+        query.order('record_date', { ascending: true });
+      }
+      
+      const { data } = await query;
+      bpRecords = data;
+    }
 
     // 取得心跳紀錄
-    const { data: hrRecords } = await supabase
-      .from('health_records')
-      .select(`
-        record_date,
-        record_data (field_name, field_value)
-      `)
-      .eq('user_id', user.id)
-      .eq('category_id', (await supabase.from('record_categories').select('id').eq('name', '心跳').eq('is_default', true).single()).data?.id)
-      .gte('record_date', startDateStr)
-      .lte('record_date', endDateStr)
-      .order('record_date', { ascending: true });
+    let hrRecords = null;
+    if (hrCategory?.id) {
+      const query = supabase
+        .from('health_records')
+        .select(`
+          record_date,
+          record_time,
+          record_data (field_name, field_value)
+        `)
+        .eq('user_id', user.id)
+        .eq('category_id', hrCategory.id)
+        .gte('record_date', startDateStr)
+        .lte('record_date', endDateStr);
+      
+      if (isSingleDay) {
+        query.order('record_time', { ascending: true });
+      } else {
+        query.order('record_date', { ascending: true });
+      }
+      
+      const { data } = await query;
+      hrRecords = data;
+    }
 
     // 取得飲食紀錄
-    const { data: dietRecords } = await supabase
-      .from('health_records')
-      .select(`
-        record_data (field_name, field_value)
-      `)
-      .eq('user_id', user.id)
-      .eq('category_id', (await supabase.from('record_categories').select('id').eq('name', '飲食').eq('is_default', true).single()).data?.id)
-      .gte('record_date', startDateStr)
-      .lte('record_date', endDateStr);
+    let dietRecords = null;
+    if (dietCategory?.id) {
+      const { data } = await supabase
+        .from('health_records')
+        .select(`
+          record_data (field_name, field_value)
+        `)
+        .eq('user_id', user.id)
+        .eq('category_id', dietCategory.id)
+        .gte('record_date', startDateStr)
+        .lte('record_date', endDateStr);
+      dietRecords = data;
+    }
 
     // 取得藥物紀錄
-    const { data: medRecords } = await supabase
-      .from('health_records')
-      .select(`
-        record_data (field_name, field_value)
-      `)
-      .eq('user_id', user.id)
-      .eq('category_id', (await supabase.from('record_categories').select('id').eq('name', '藥物').eq('is_default', true).single()).data?.id)
-      .gte('record_date', startDateStr)
-      .lte('record_date', endDateStr);
+    let medRecords = null;
+    if (medCategory?.id) {
+      const { data } = await supabase
+        .from('health_records')
+        .select(`
+          record_data (field_name, field_value)
+        `)
+        .eq('user_id', user.id)
+        .eq('category_id', medCategory.id)
+        .gte('record_date', startDateStr)
+        .lte('record_date', endDateStr);
+      medRecords = data;
+    }
 
     // 處理血壓資料
     const bloodPressure = [];
     if (bpRecords) {
       const bpMap = new Map();
       bpRecords.forEach(record => {
-        if (!bpMap.has(record.record_date)) {
-          bpMap.set(record.record_date, {});
+        // 單日模式：使用日期+時間作為 key；多日模式：只使用日期
+        const key = isSingleDay && record.record_time 
+          ? `${record.record_date}T${record.record_time}` 
+          : record.record_date;
+        
+        if (!bpMap.has(key)) {
+          bpMap.set(key, {});
         }
-        const data = bpMap.get(record.record_date);
+        const data = bpMap.get(key);
         if (record.record_data) {
           record.record_data.forEach(item => {
             if (item.field_name === 'systolic') data.systolic = parseFloat(item.field_value) || 0;
             if (item.field_name === 'diastolic') data.diastolic = parseFloat(item.field_value) || 0;
+            if (item.field_name === 'heart_rate') data.heart_rate = parseFloat(item.field_value) || 0;
           });
         }
       });
-      bpMap.forEach((value, date) => {
+      bpMap.forEach((value, dateKey) => {
         if (value.systolic && value.diastolic) {
-          bloodPressure.push({ date, ...value });
+          bloodPressure.push({ date: dateKey, ...value });
         }
       });
     }
@@ -145,20 +222,25 @@ exports.handler = async (event, context) => {
     if (hrRecords) {
       const hrMap = new Map();
       hrRecords.forEach(record => {
-        if (!hrMap.has(record.record_date)) {
-          hrMap.set(record.record_date, { heart_rate: 0 });
+        // 單日模式：使用日期+時間作為 key；多日模式：只使用日期
+        const key = isSingleDay && record.record_time 
+          ? `${record.record_date}T${record.record_time}` 
+          : record.record_date;
+        
+        if (!hrMap.has(key)) {
+          hrMap.set(key, { heart_rate: 0 });
         }
         if (record.record_data) {
           record.record_data.forEach(item => {
             if (item.field_name === 'heart_rate') {
-              hrMap.get(record.record_date).heart_rate = parseFloat(item.field_value) || 0;
+              hrMap.get(key).heart_rate = parseFloat(item.field_value) || 0;
             }
           });
         }
       });
-      hrMap.forEach((value, date) => {
+      hrMap.forEach((value, dateKey) => {
         if (value.heart_rate > 0) {
-          heartRate.push({ date, ...value });
+          heartRate.push({ date: dateKey, ...value });
         }
       });
     }

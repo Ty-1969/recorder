@@ -35,3 +35,5 @@ FROM record_categories
 WHERE is_default = TRUE 
 ORDER BY display_order, id;
 
+
+

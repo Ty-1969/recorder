@@ -342,10 +342,35 @@ function renderWeekView() {
                 dayRecords = dayRecords.filter(r => r.category_id == categoryFilter);
             }
             
+            // 按時間降冪排序
+            dayRecords = sortRecordsByTime(dayRecords);
+            
             dayRecords.forEach(record => {
                 dayColumns[index].appendChild(createRecordCard(record));
             });
         }
+    });
+}
+
+// 按時間降冪排序（最新的在前面）
+function sortRecordsByTime(records) {
+    return records.sort((a, b) => {
+        // 優先使用 record_time 排序
+        if (a.record_time && b.record_time) {
+            // 比較時間（格式：HH:MM:SS）
+            if (b.record_time !== a.record_time) {
+                return b.record_time.localeCompare(a.record_time);
+            }
+        } else if (a.record_time && !b.record_time) {
+            return -1; // a 有時間，b 沒有，a 排在前面
+        } else if (!a.record_time && b.record_time) {
+            return 1; // b 有時間，a 沒有，b 排在前面
+        }
+        
+        // 如果時間相同或都沒有時間，使用 id 降冪排序（較大的 id 表示較新的紀錄）
+        const aId = a.id || 0;
+        const bId = b.id || 0;
+        return bId - aId;
     });
 }
 
@@ -363,6 +388,9 @@ function renderDayView() {
     if (categoryFilter && categoryFilter !== '') {
         dayRecords = dayRecords.filter(r => r.category_id == categoryFilter);
     }
+    
+    // 按時間降冪排序
+    dayRecords = sortRecordsByTime(dayRecords);
     
     const container = document.getElementById('dayRecords');
     container.innerHTML = '';
@@ -382,6 +410,25 @@ function renderDayView() {
     }
 }
 
+// 將英文標籤轉換為中文
+function translateFieldLabel(key) {
+    const translations = {
+        'name': '名稱',
+        'quantity': '數量',
+        'weight': '重量',
+        'systolic': '收縮壓',
+        'diastolic': '舒張壓',
+        'heart_rate': '心跳',
+        'temperature': '體溫',
+        'blood_sugar': '血糖',
+        'notes': '備註',
+        'amount': '數量',
+        'unit': '單位',
+        'value': '數值'
+    };
+    return translations[key] || key;
+}
+
 function createRecordCard(record) {
     const card = document.createElement('div');
     card.className = 'record-card';
@@ -391,15 +438,17 @@ function createRecordCard(record) {
     const categoryName = category ? category.name : '未知';
     const categoryIcon = category ? category.icon : '📝';
     
-    const timeStr = record.record_time ? ` ${record.record_time.substring(0, 5)}` : '';
+    // 只顯示時間，不顯示日期
+    const timeStr = record.record_time ? record.record_time.substring(0, 5) : '';
     
     let dataHtml = '';
     if (record.data && typeof record.data === 'object') {
         Object.entries(record.data).forEach(([key, value]) => {
             if (value !== null && value !== '') {
+                const label = translateFieldLabel(key);
                 dataHtml += `
                     <div class="record-field">
-                        <span class="record-field-label">${key}:</span>
+                        <span class="record-field-label">${label}:</span>
                         <span class="record-field-value">${value}</span>
                     </div>
                 `;
@@ -410,19 +459,18 @@ function createRecordCard(record) {
     card.innerHTML = `
         <div class="record-card-header">
             <div class="record-category">
-                <span>${categoryIcon}</span>
                 <span>${categoryName}</span>
             </div>
-            <div class="record-time">${formatDate(record.record_date)}${timeStr}</div>
-            <div class="record-actions">
-                <button class="record-action-btn" onclick="editRecord(${record.id})">✏️</button>
-                <button class="record-action-btn" onclick="deleteRecord(${record.id})">🗑️</button>
-            </div>
+            <div class="record-time">${timeStr || '無時間'}</div>
         </div>
         <div class="record-data">
             ${dataHtml || '<div class="record-field">無資料</div>'}
         </div>
         ${record.notes ? `<div class="record-notes">${escapeHtml(record.notes)}</div>` : ''}
+        <div class="record-actions">
+            <button class="record-action-btn" onclick="editRecord(${record.id})">✏️</button>
+            <button class="record-action-btn" onclick="deleteRecord(${record.id})">🗑️</button>
+        </div>
     `;
     
     return card;

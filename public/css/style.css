@@ -384,6 +384,18 @@ textarea.form-input {
     max-width: 140px;
 }
 
+/* 日期選擇器日曆圖示顏色改為白色 */
+.date-picker::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    cursor: pointer;
+}
+
+/* Firefox 瀏覽器 */
+.date-picker::-moz-calendar-picker-indicator {
+    filter: invert(1);
+    cursor: pointer;
+}
+
 /* 週視圖 */
 .week-view {
     display: none;

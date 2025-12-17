@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS record_categories (
     name VARCHAR(50) NOT NULL,
     icon VARCHAR(20) DEFAULT '📝',
     is_default BOOLEAN DEFAULT FALSE,
+    is_hidden BOOLEAN DEFAULT FALSE,
     display_order INTEGER DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -98,7 +99,7 @@ CREATE TRIGGER update_health_records_updated_at
 -- 注意：實際使用時，這些應該在應用層動態建立，這裡只是範例
 -- 先刪除可能存在的重複類別
 DELETE FROM record_categories 
-WHERE name IN ('飲食', '血壓', '心跳', '大便', '小便') 
+WHERE name IN ('飲食', '血壓', '心跳', '大號', '小號') 
 AND is_default = TRUE;
 
 -- 插入預設類別
@@ -106,8 +107,8 @@ INSERT INTO record_categories (name, icon, is_default, display_order) VALUES
     ('飲食', '🍎', TRUE, 1),
     ('血壓', '🩺', TRUE, 2),
     ('心跳', '❤️', TRUE, 3),
-    ('大便', '💩', TRUE, 4),
-    ('小便', '💧', TRUE, 5);
+    ('大號', '💩', TRUE, 4),
+    ('小號', '💧', TRUE, 5);
 
 -- 取得預設類別的 ID 並插入預設欄位
 -- 飲食類別欄位
@@ -156,12 +157,12 @@ BEGIN
     END IF;
 END $$;
 
--- 大便類別欄位
+-- 大號類別欄位
 DO $$
 DECLARE
     poop_category_id BIGINT;
 BEGIN
-    SELECT id INTO poop_category_id FROM record_categories WHERE name = '大便' AND is_default = TRUE LIMIT 1;
+    SELECT id INTO poop_category_id FROM record_categories WHERE name = '大號' AND is_default = TRUE LIMIT 1;
     
     IF poop_category_id IS NOT NULL THEN
         INSERT INTO category_fields (category_id, field_name, field_type, field_label, is_required, display_order, unit) VALUES
@@ -171,12 +172,12 @@ BEGIN
     END IF;
 END $$;
 
--- 小便類別欄位
+-- 小號類別欄位
 DO $$
 DECLARE
     pee_category_id BIGINT;
 BEGIN
-    SELECT id INTO pee_category_id FROM record_categories WHERE name = '小便' AND is_default = TRUE LIMIT 1;
+    SELECT id INTO pee_category_id FROM record_categories WHERE name = '小號' AND is_default = TRUE LIMIT 1;
     
     IF pee_category_id IS NOT NULL THEN
         INSERT INTO category_fields (category_id, field_name, field_type, field_label, is_required, display_order, unit) VALUES

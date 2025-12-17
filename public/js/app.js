@@ -235,8 +235,13 @@ function populateCategorySelects() {
         }
     });
     
-    // 添加唯一類別
+    // 添加唯一類別（過濾掉隱藏的類別）
     uniqueCategories.forEach(cat => {
+        // 跳過隱藏的類別
+        if (cat.is_hidden) {
+            return;
+        }
+        
         const option1 = document.createElement('option');
         option1.value = cat.id;
         option1.textContent = `${cat.icon || '📝'} ${cat.name}`;
@@ -442,19 +447,49 @@ function createRecordCard(record) {
     const timeStr = record.record_time ? record.record_time.substring(0, 5) : '';
     
     let dataHtml = '';
+    let hasData = false;
+    
     if (record.data && typeof record.data === 'object') {
         Object.entries(record.data).forEach(([key, value]) => {
-            if (value !== null && value !== '') {
-                const label = translateFieldLabel(key);
-                dataHtml += `
-                    <div class="record-field">
-                        <span class="record-field-label">${label}:</span>
-                        <span class="record-field-value">${value}</span>
-                    </div>
-                `;
+            // 檢查值是否有效（不是 null、undefined、空字串，且不是空物件或空陣列）
+            if (value !== null && value !== undefined && value !== '') {
+                // 如果是物件或陣列，檢查是否為空
+                if (typeof value === 'object') {
+                    if (Array.isArray(value) && value.length > 0) {
+                        hasData = true;
+                        const label = translateFieldLabel(key);
+                        dataHtml += `
+                            <div class="record-field">
+                                <span class="record-field-label">${label}:</span>
+                                <span class="record-field-value">${JSON.stringify(value)}</span>
+                            </div>
+                        `;
+                    } else if (!Array.isArray(value) && Object.keys(value).length > 0) {
+                        hasData = true;
+                        const label = translateFieldLabel(key);
+                        dataHtml += `
+                            <div class="record-field">
+                                <span class="record-field-label">${label}:</span>
+                                <span class="record-field-value">${JSON.stringify(value)}</span>
+                            </div>
+                        `;
+                    }
+                } else {
+                    hasData = true;
+                    const label = translateFieldLabel(key);
+                    dataHtml += `
+                        <div class="record-field">
+                            <span class="record-field-label">${label}:</span>
+                            <span class="record-field-value">${value}</span>
+                        </div>
+                    `;
+                }
             }
         });
     }
+    
+    // 如果有備註，即使沒有資料也不顯示"無資料"
+    const hasNotes = record.notes && record.notes.trim() !== '';
     
     card.innerHTML = `
         <div class="record-card-header">
@@ -464,9 +499,9 @@ function createRecordCard(record) {
             <div class="record-time">${timeStr || '無時間'}</div>
         </div>
         <div class="record-data">
-            ${dataHtml || '<div class="record-field">無資料</div>'}
+            ${dataHtml || (hasNotes ? '' : '<div class="record-field">無資料</div>')}
         </div>
-        ${record.notes ? `<div class="record-notes">${escapeHtml(record.notes)}</div>` : ''}
+        ${hasNotes ? `<div class="record-notes">${escapeHtml(record.notes)}</div>` : ''}
         <div class="record-actions">
             <button class="record-action-btn" onclick="editRecord(${record.id})">✏️</button>
             <button class="record-action-btn" onclick="deleteRecord(${record.id})">🗑️</button>
@@ -1037,18 +1072,22 @@ function renderCategoriesList(categoriesList) {
     });
     
     container.innerHTML = uniqueCategories.map(cat => `
-        <div class="chart-card">
+        <div class="chart-card" style="${cat.is_hidden ? 'opacity: 0.6;' : ''}">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                 <h3 style="margin: 0; display: flex; align-items: center; gap: 8px;">
                     <span>${cat.icon || '📝'}</span>
                     <span>${escapeHtml(cat.name)}</span>
+                    ${cat.is_hidden ? '<span style="font-size: 0.75rem; color: var(--text-muted); margin-left: 8px;">(已隱藏)</span>' : ''}
                 </h3>
-                ${!cat.is_default ? `
-                    <div style="display: flex; gap: 8px;">
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.9rem;" onclick="toggleCategoryVisibility(${cat.id}, ${cat.is_hidden || false})">
+                        ${cat.is_hidden ? '顯示' : '隱藏'}
+                    </button>
+                    ${!cat.is_default ? `
                         <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.9rem;" onclick="editCategory(${cat.id})">編輯</button>
                         <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.9rem; background: var(--accent-danger);" onclick="deleteCategory(${cat.id})">刪除</button>
-                    </div>
-                ` : '<span style="font-size: 0.85rem; color: var(--text-muted);">預設類別</span>'}
+                    ` : '<span style="font-size: 0.85rem; color: var(--text-muted);">預設類別</span>'}
+                </div>
             </div>
         </div>
     `).join('');
@@ -1058,6 +1097,10 @@ function showAddCategoryModal() {
     editingCategoryId = null;
     document.getElementById('categoryModalTitle').textContent = '新增類別';
     document.getElementById('categoryForm').reset();
+    // 預設勾選「名稱」
+    document.getElementById('fieldName').checked = true;
+    document.getElementById('fieldQuantity').checked = false;
+    document.getElementById('fieldWeight').checked = false;
     document.getElementById('categoryModal').classList.add('active');
 }
 
@@ -1079,6 +1122,43 @@ async function handleSaveCategory(e) {
     const name = document.getElementById('categoryName').value.trim();
     const icon = document.getElementById('categoryIcon').value.trim() || '📝';
     
+    // 取得選中的欄位
+    const fields = [];
+    let displayOrder = 1;
+    
+    if (document.getElementById('fieldName').checked) {
+        fields.push({
+            field_name: 'name',
+            field_type: 'text',
+            field_label: '名稱',
+            is_required: true,
+            display_order: displayOrder++,
+            unit: null
+        });
+    }
+    
+    if (document.getElementById('fieldQuantity').checked) {
+        fields.push({
+            field_name: 'quantity',
+            field_type: 'number',
+            field_label: '數量',
+            is_required: false,
+            display_order: displayOrder++,
+            unit: '個'
+        });
+    }
+    
+    if (document.getElementById('fieldWeight').checked) {
+        fields.push({
+            field_name: 'weight',
+            field_type: 'number',
+            field_label: '重量',
+            is_required: false,
+            display_order: displayOrder++,
+            unit: 'g'
+        });
+    }
+    
     if (!name) {
         alert('請輸入類別名稱');
         hideLoading();
@@ -1099,7 +1179,8 @@ async function handleSaveCategory(e) {
             },
             body: JSON.stringify({
                 name: name,
-                icon: icon
+                icon: icon,
+                fields: fields
             })
         });
         
@@ -1163,6 +1244,49 @@ window.editRecord = editRecord;
 window.deleteRecord = deleteRecord;
 window.backToRecords = backToRecords;
 window.showAddCategoryModal = showAddCategoryModal;
+async function toggleCategoryVisibility(categoryId, currentHidden) {
+    if (!confirm(`確定要${currentHidden ? '顯示' : '隱藏'}這個類別嗎？`)) {
+        return;
+    }
+    
+    showLoading();
+    try {
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch(`${API_BASE}/categories/${categoryId}`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                is_hidden: !currentHidden
+            })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            // 重新載入類別列表
+            await loadCategories();
+            await loadCategoriesList();
+            populateCategorySelects();
+            
+            // 如果當前在統計視圖，重新載入統計
+            const statsView = document.getElementById('statsView');
+            if (statsView && statsView.style.display !== 'none') {
+                loadStats();
+            }
+        } else {
+            alert('操作失敗: ' + (data.error || '未知錯誤'));
+        }
+    } catch (error) {
+        console.error('切換類別顯示狀態失敗:', error);
+        alert('操作失敗: ' + error.message);
+    } finally {
+        hideLoading();
+    }
+}
+
 window.editCategory = editCategory;
 window.deleteCategory = deleteCategory;
+window.toggleCategoryVisibility = toggleCategoryVisibility;
 

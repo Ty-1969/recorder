@@ -230,7 +230,7 @@ exports.handler = async (event, context) => {
 
     // POST: 新增類別
     if (httpMethod === 'POST' && !categoryId) {
-      const { name, icon } = JSON.parse(event.body || '{}');
+      const { name, icon, fields } = JSON.parse(event.body || '{}');
 
       if (!name || !name.trim()) {
         return {
@@ -249,7 +249,7 @@ exports.handler = async (event, context) => {
         .limit(1)
         .single();
 
-      const { data, error } = await supabase
+      const { data: categoryData, error: categoryError } = await supabase
         .from('record_categories')
         .insert({
           user_id: user.id,
@@ -261,18 +261,45 @@ exports.handler = async (event, context) => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (categoryError) throw categoryError;
+
+      // 如果有欄位定義，創建欄位
+      if (fields && Array.isArray(fields) && fields.length > 0) {
+        const fieldInserts = fields.map(field => ({
+          category_id: categoryData.id,
+          field_name: field.field_name,
+          field_type: field.field_type || 'text',
+          field_label: field.field_label,
+          is_required: field.is_required || false,
+          display_order: field.display_order || 0,
+          unit: field.unit || null
+        }));
+
+        const { error: fieldsError } = await supabase
+          .from('category_fields')
+          .insert(fieldInserts);
+
+        if (fieldsError) {
+          // 如果欄位創建失敗，刪除已創建的類別
+          await supabase
+            .from('record_categories')
+            .delete()
+            .eq('id', categoryData.id);
+          throw fieldsError;
+        }
+      }
 
       return {
         statusCode: 201,
         headers,
-        body: JSON.stringify({ success: true, category: data })
+        body: JSON.stringify({ success: true, category: categoryData })
       };
     }
 
     // PUT: 更新類別
     if (httpMethod === 'PUT' && categoryId) {
-      const { name, icon } = JSON.parse(event.body || '{}');
+      const body = JSON.parse(event.body || '{}');
+      const { name, icon, is_hidden } = body;
 
       // 檢查類別是否存在且屬於該使用者
       const { data: existing } = await supabase
@@ -289,25 +316,31 @@ exports.handler = async (event, context) => {
         };
       }
 
-      if (existing.is_default) {
+      // 構建更新物件
+      const updateData = {};
+      if (is_hidden !== undefined) {
+        // 允許更新隱藏狀態（包括預設類別）
+        updateData.is_hidden = is_hidden;
+      } else if (existing.is_default) {
+        // 如果是預設類別且不是更新隱藏狀態，則不允許修改
         return {
           statusCode: 403,
           headers,
           body: JSON.stringify({ success: false, error: '無法修改預設類別' })
         };
+      } else {
+        // 非預設類別可以修改名稱和圖示
+        if (name !== undefined) updateData.name = name.trim();
+        if (icon !== undefined) updateData.icon = icon;
       }
 
-      if (existing.user_id !== user.id) {
+      if (existing.user_id !== user.id && !existing.is_default) {
         return {
           statusCode: 403,
           headers,
           body: JSON.stringify({ success: false, error: '無權限修改此類別' })
         };
       }
-
-      const updateData = {};
-      if (name !== undefined) updateData.name = name.trim();
-      if (icon !== undefined) updateData.icon = icon || '📝';
 
       const { data, error } = await supabase
         .from('record_categories')
@@ -358,6 +391,45 @@ exports.handler = async (event, context) => {
         };
       }
 
+      // 檢查是否有使用此類別的記錄
+      const { data: records, error: recordsError } = await supabase
+        .from('health_records')
+        .select('id')
+        .eq('category_id', categoryId)
+        .eq('user_id', user.id);
+
+      if (recordsError) throw recordsError;
+
+      // 如果有記錄，先刪除相關的記錄資料和記錄本身
+      if (records && records.length > 0) {
+        const recordIds = records.map(r => r.id);
+
+        // 先刪除記錄資料（record_data）
+        const { error: dataError } = await supabase
+          .from('record_data')
+          .delete()
+          .in('record_id', recordIds);
+
+        if (dataError) throw dataError;
+
+        // 再刪除健康紀錄（health_records）
+        const { error: recordsDeleteError } = await supabase
+          .from('health_records')
+          .delete()
+          .in('id', recordIds);
+
+        if (recordsDeleteError) throw recordsDeleteError;
+      }
+
+      // 刪除類別欄位定義（category_fields）
+      const { error: fieldsError } = await supabase
+        .from('category_fields')
+        .delete()
+        .eq('category_id', categoryId);
+
+      if (fieldsError) throw fieldsError;
+
+      // 最後刪除類別本身
       const { error } = await supabase
         .from('record_categories')
         .delete()
@@ -368,7 +440,12 @@ exports.handler = async (event, context) => {
       return {
         statusCode: 200,
         headers,
-        body: JSON.stringify({ success: true })
+        body: JSON.stringify({ 
+          success: true,
+          message: records && records.length > 0 
+            ? `已刪除類別及 ${records.length} 筆相關紀錄` 
+            : '已刪除類別'
+        })
       };
     }
 
